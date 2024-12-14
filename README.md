@@ -68,7 +68,7 @@ This tool is perfect for artists looking to streamline their asset export workfl
 ---
 
 ## **License**
-- This addon is licensed under the GNU General Public License v3, meaning it is free to use, modify, and distribute. Concept of the dagger by Baldi Konjin, you can find it here
+- This addon is licensed under the GNU General Public License v3, meaning it is free to use, modify, and distribute.
 
 ---
 
