@@ -5,22 +5,32 @@ The **Unreal Exporter** addon simplifies exporting 3D meshes for Unreal Engine b
 
 This tool is perfect for artists looking to streamline their asset export workflow for Unreal Engine, with options for organizing paths, exporting selected objects, or entire hierarchies, all with precision and simplicity.
 
+**This addon was designed in the use of any import in engine, no matter the engine (work with unity, godot, ...)**. This addon is released under the [GNU General Public License v3](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/LICENSE).
+
+![BlenderPanel](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/Images/Panel_Blender.png)
+
 ---
 
 ## **Features**
 1. **Export Selected Objects:**
    - Export individual meshes with their original pivot points to the world origin.
    - Ideal for clean imports into Unreal Engine without needing additional adjustments.
+  
+![SelectedObjects](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/Images/Selected_Object.gif)
 
 2. **Export Object Hierarchies:**
    - Export entire parent-child hierarchies as single objects, simplifying complex asset exports.
+  
+![SelectedHierarchy](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/Images/Selected_Hierarchy.gif)
 
 3. **Path Management:**
    - Easily set and save export paths using the addon’s UI.
    - Supports dynamic path selection and dropdown options for saved paths.
+  
+![PathManagement](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/Images/Saved_Path.gif)
 
 4. **Include/Exclude Transformations:**
-   - Optional toggle to reset object locations during export or preserve their world transformations.
+   - Optional toggle to keep the object transformation in the world (not reset at the origini).
 
 5. **Customizable Shortcuts:**
    - Add custom shortcuts to streamline your workflow by right-clicking on any button and assigning a shortcut.
@@ -57,6 +67,11 @@ This tool is perfect for artists looking to streamline their asset export workfl
 
 ---
 
+## **License**
+- This addon is licensed under the GNU General Public License v3, meaning it is free to use, modify, and distribute.
+
+---
+
 ## **Credits**
 - **Kostia Perry (Tarmunds):**
   - Add-on creator, path manager, and UI enhancements.
@@ -65,4 +80,8 @@ This tool is perfect for artists looking to streamline their asset export workfl
 
 ---
 
-For any issues or suggestions, feel free to contact us or contribute to the project repository!
+## **Contributing and Feedback**
+- We are always open to suggestions for new tools or modifications. Feel free to join our community on [Discord](https://discord.gg/h39W5s5ZbQ) to share your ideas and feedback.
+
+— Tarmunds
+
