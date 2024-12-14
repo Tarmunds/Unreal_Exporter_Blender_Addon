@@ -4,7 +4,7 @@ from bpy.types import Panel
 
 class UnrealExport_ExportPanel(Panel):
     bl_idname = "VIEW3D_PT_export_unreal"
-    bl_label = "Export Unreal"
+    bl_label = "Unreal Exporter"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Tarmunds Addons'
