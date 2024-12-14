@@ -4,6 +4,7 @@
 The **Unreal Exporter** addon simplifies exporting 3D meshes for Unreal Engine by allowing you to export selected objects or their hierarchies individually. Each exported object is positioned at the world origin, maintaining its original pivot point. This ensures accurate origins for drag-and-drop import into Unreal Engine and consistent reimport behavior.
 
 This tool is perfect for artists looking to streamline their asset export workflow for Unreal Engine, with options for organizing paths, exporting selected objects, or entire hierarchies, all with precision and simplicity.
+This addon was designed in the use of any import in engine, no matter the engine (work with unity, godot, ...). This addon is released under the [GNU General Public License v3](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/LICENSE).
 
 ![BlenderPanel](https://github.com/Tarmunds/Blender_Unreal_Export_Addon/blob/main/Images/Panel_Blender.png)
 
@@ -65,6 +66,11 @@ This tool is perfect for artists looking to streamline their asset export workfl
 
 ---
 
+## **License**
+- This addon is licensed under the GNU General Public License v3, meaning it is free to use, modify, and distribute. Concept of the dagger by Baldi Konjin, you can find it here
+
+---
+
 ## **Credits**
 - **Kostia Perry (Tarmunds):**
   - Add-on creator, path manager, and UI enhancements.
@@ -73,4 +79,8 @@ This tool is perfect for artists looking to streamline their asset export workfl
 
 ---
 
-For any issues or suggestions, feel free to contact us or contribute to the project repository!
+## **Contributing and Feedback**
+- We are always open to suggestions for new tools or modifications. Feel free to join our community on [Discord](https://discord.gg/h39W5s5ZbQ) to share your ideas and feedback.
+
+— Tarmunds
+
