@@ -14,14 +14,14 @@ from .UE_Exporter import update_saved_paths_enum
 from bpy.types import Panel
 
 bl_info = {
-    "name": "Export Unreal",
+    "name": "Unreal Exporter",
     "author": "Tarmunds",
     "version": (3, 1),
     "blender": (4, 0, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
     "description": "Exports selected objects or hierarchies into separate files at the origin.",
-    "doc_url": "https://docs.google.com/document/d/1j2DZWXR-klQArrlfSLQAV_ltop4BOsD6ZXgRYFnC0b0/edit?usp=sharing",
-    "tracker_url": "https://github.com/Tarmunds/Unreal-exporter",
+    "doc_url": "https://tarmunds.gumroad.com/l/UnrealExporter",
+    "tracker_url": "https://discord.gg/h39W5s5ZbQ",
     "category": "Import-Export",
 }
 
