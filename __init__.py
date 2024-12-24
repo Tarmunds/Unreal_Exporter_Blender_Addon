@@ -38,8 +38,17 @@ def register():
         bpy.utils.register_class(c)
 
     bpy.types.Scene.mesh_rename_path = bpy.props.StringProperty(
-        name="Path", default="", maxlen=1024, subtype='DIR_PATH'
+        name="Path",
+        default="",
+        maxlen=1024,
+        subtype='DIR_PATH',
+        update=lambda self, context: setattr(
+            context.scene, "mesh_rename_path",
+            bpy.path.abspath(context.scene.mesh_rename_path)
+        )
     )
+
+
     bpy.types.Scene.export_format = bpy.props.EnumProperty(
         name="Format",
         description="Choose export format",
