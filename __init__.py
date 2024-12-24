@@ -16,7 +16,7 @@ from bpy.types import Panel
 bl_info = {
     "name": "Unreal Exporter",
     "author": "Tarmunds",
-    "version": (3, 1),
+    "version": (3, 5),
     "blender": (4, 0, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
     "description": "Exports selected objects or hierarchies into separate files at the origin.",
