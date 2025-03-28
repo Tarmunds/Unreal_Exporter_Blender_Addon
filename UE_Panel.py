@@ -43,9 +43,12 @@ class UnrealExport_ExportPanel(Panel):
         col.separator()
 
         # Include location toggle
-        col.prop(context.scene, "include_transform", text="Include Location")
+        row = self.layout.row()
+        row.prop(context.scene, "include_transform", text="Include Location", toggle=True)
+        row.prop(context.scene, "IncludeCurve", text="Include Curve Geometry", toggle=True)
 
         # Proper spacing
+        col = layout.column(align=True)
         col.separator()
 
         # Export buttons

@@ -35,13 +35,18 @@ class UnrealExport_ExportSelectedObjectsOperator(Operator):
             name = bpy.path.clean_name(obj.name)
             fn = os.path.join(export_dir, f"{name}.{export_format}")
 
+            if bpy.types.Scene.IncludeCurve :
+                ObjectTypeExported = 'MESH', 'ARMATURE', 'OTHER'
+            else :
+                ObjectTypeExported = 'MESH', 'ARMATURE'
+
             try:
                 if export_format == "fbx":
                     bpy.ops.export_scene.fbx(
                         filepath=fn,
                         use_selection=True,
                         apply_unit_scale=False,
-                        object_types={'MESH', 'ARMATURE'},
+                        object_types=set(ObjectTypeExported),
                         mesh_smooth_type='FACE',
                         use_mesh_modifiers=True
                     )
@@ -109,13 +114,18 @@ class UnrealExport_ExportParentedObjectsOperator(Operator):
             name = bpy.path.clean_name(parent.name)
             fn = os.path.join(export_dir, f"{name}.{export_format}")
 
+            if bpy.types.Scene.IncludeCurve :
+                ObjectTypeExported = 'MESH', 'ARMATURE', 'OTHER'
+            else :
+                ObjectTypeExported = 'MESH', 'ARMATURE'
+
             try:
                 if export_format == "fbx":
                     bpy.ops.export_scene.fbx(
                         filepath=fn,
                         use_selection=True,
                         apply_unit_scale=False,
-                        object_types={'MESH', 'ARMATURE'},
+                        object_types=set(ObjectTypeExported),
                         mesh_smooth_type='FACE',
                         use_mesh_modifiers=True
                     )

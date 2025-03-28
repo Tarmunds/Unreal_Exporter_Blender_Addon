@@ -16,7 +16,7 @@ from bpy.types import Panel
 bl_info = {
     "name": "Unreal Exporter",
     "author": "Tarmunds",
-    "version": (3, 5),
+    "version": (3, 7),
     "blender": (4, 0, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
     "description": "Exports selected objects or hierarchies into separate files at the origin.",
@@ -58,7 +58,7 @@ def register():
     )
     bpy.types.Scene.include_transform = bpy.props.BoolProperty(
         name="Include Location",
-        description="Include location in the export",
+        description="Include location in the export, note that this is not recommended as it will not set the pivot at the origin of the world",
         default=False
     )
     bpy.types.Scene.saved_paths = bpy.props.CollectionProperty(
@@ -72,6 +72,11 @@ def register():
     bpy.types.Scene.path_dropdown = bpy.props.BoolProperty(
         name="Path Options",
         description="Toggle path options dropdown",
+        default=False
+    )
+    bpy.types.Scene.IncludeCurve = bpy.props.BoolProperty(
+        name="Inclue Curve Geometry",
+        description="Allow to export curve geometry, curve without any extrude or geometry will not be exported, but can still drive other modifier",
         default=False
     )
 
