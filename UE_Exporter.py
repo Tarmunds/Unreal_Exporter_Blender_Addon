@@ -14,6 +14,7 @@ class UnrealExport_ExportSelectedObjectsOperator(Operator):
         
         export_format = context.scene.export_format.lower()
         include_transform = context.scene.include_transform
+        Yup = context.scene.Yup
         basedir = os.path.dirname(bpy.data.filepath)
         export_dir = os.path.join(basedir, path)
 
@@ -48,7 +49,8 @@ class UnrealExport_ExportSelectedObjectsOperator(Operator):
                         apply_unit_scale=False,
                         object_types=set(ObjectTypeExported),
                         mesh_smooth_type='FACE',
-                        use_mesh_modifiers=True
+                        use_mesh_modifiers=True,
+                        bake_space_transform=Yup
                     )
                 elif export_format == "obj":
                     bpy.ops.wm.obj_export(
@@ -84,6 +86,7 @@ class UnrealExport_ExportParentedObjectsOperator(Operator):
         include_transform = context.scene.include_transform
         basedir = os.path.dirname(bpy.data.filepath)
         export_dir = os.path.join(basedir, path)
+        Yup = context.scene.Yup
 
         try:
             os.makedirs(export_dir, exist_ok=True)
@@ -127,7 +130,8 @@ class UnrealExport_ExportParentedObjectsOperator(Operator):
                         apply_unit_scale=False,
                         object_types=set(ObjectTypeExported),
                         mesh_smooth_type='FACE',
-                        use_mesh_modifiers=True
+                        use_mesh_modifiers=True,
+                        bake_space_transform=Yup
                     )
                 elif export_format == "obj":
                     bpy.ops.wm.obj_export(
