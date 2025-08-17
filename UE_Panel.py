@@ -46,6 +46,8 @@ class UnrealExport_ExportPanel(Panel):
         row = self.layout.row()
         row.prop(context.scene, "include_transform", text="Include Location", toggle=True)
         row.prop(context.scene, "IncludeCurve", text="Include Curve Geometry", toggle=True)
+        col = self.layout.column(align=True)
+        col.prop(context.scene, "Yup", text="Y-Up", toggle=True)
 
         # Proper spacing
         col = layout.column(align=True)

@@ -15,7 +15,7 @@ from .UE_Exporter import update_saved_paths_enum
 bl_info = {
     "name": "Unreal Exporter",
     "author": "Tarmunds",
-    "version": (3, 8),
+    "version": (3, 9),
     "blender": (4, 5, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
     "description": "Exports selected objects or hierarchies into separate files at the origin.",
@@ -92,6 +92,12 @@ def register():
         default=False
     )
 
+    bpy.types.Scene.Yup = bpy.props.BoolProperty(
+        name="Y up",
+        description="Pass the mesh through transform matrix to set Y as up axis",
+        default=False
+    )
+
 def unregister():
     for c in reversed(classes):
         bpy.utils.unregister_class(c)
@@ -103,6 +109,7 @@ def unregister():
     del bpy.types.Scene.saved_path_enum
     del bpy.types.Scene.path_dropdown
     del bpy.types.Scene.IncludeCurve
+    del bpy.types.Scene.Yup
 
 if __name__ == "__main__":
     register()
