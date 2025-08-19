@@ -15,10 +15,10 @@ from .UE_Exporter import update_saved_paths_enum
 bl_info = {
     "name": "Unreal Exporter",
     "author": "Tarmunds",
-    "version": (3, 9),
+    "version": (4, 0, 1),
     "blender": (4, 5, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
-    "description": "Exports selected objects or hierarchies into separate files at the origin.",
+    "description": "Exports selected objects or hierarchies into separate files at the provided path. Also include some option for Yup engine, and to join meshes before export.",
     "doc_url": "https://tarmunds.gumroad.com/l/UnrealExporter",
     "tracker_url": "https://discord.gg/h39W5s5ZbQ",
     "category": "Import-Export",
@@ -92,9 +92,20 @@ def register():
         default=False
     )
 
+
+    bpy.types.Scene.MoreOptions = bpy.props.BoolProperty(
+        name="Unity Options",
+        description="Show More Options",
+        default=False
+    )
     bpy.types.Scene.Yup = bpy.props.BoolProperty(
         name="Y up",
         description="Pass the mesh through transform matrix to set Y as up axis",
+        default=False
+    )
+    bpy.types.Scene.JoinAll = bpy.props.BoolProperty(
+        name="Join Meshes",
+        description="Join all selected meshes into the top parent before exporting. Work only with export Hierarchy. /!\ Warning this might take time depending of your modifier as it apply them all before exporting.",
         default=False
     )
 
@@ -110,6 +121,8 @@ def unregister():
     del bpy.types.Scene.path_dropdown
     del bpy.types.Scene.IncludeCurve
     del bpy.types.Scene.Yup
+    del bpy.types.Scene.JoinAll
+    del bpy.types.Scene.MoreOptions
 
 if __name__ == "__main__":
     register()

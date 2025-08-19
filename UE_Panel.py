@@ -11,18 +11,19 @@ class UnrealExport_ExportPanel(Panel):
 
     def draw(self, context):
         layout = self.layout
-        col = layout.column(align=True)
-
         # Path field
-        col.prop(context.scene, "mesh_rename_path", text="Path")
+        row = layout.row()
+        row.scale_y = 1.5
+        row.prop(context.scene, "mesh_rename_path", text="Path")
 
         # Proper spacing
+        col = self.layout.column(align=True)
         col.separator()
-
         # Dropdown menu logic
         if not context.scene.path_dropdown:
             # Dropdown closed, no box
-            row = col.row()
+            box = col.box()
+            row = box.row()
             icon = 'TRIA_RIGHT'
             row.prop(context.scene, "path_dropdown", icon=icon, text="Path Options", emboss=False, toggle=True)
         else:
@@ -39,20 +40,35 @@ class UnrealExport_ExportPanel(Panel):
             row.prop(context.scene, "saved_path_enum", text="Saved Paths")
             row.operator("export.select_saved_path", text="Use Path")
 
-        # Proper spacing
-        col.separator()
-
-        # Include location toggle
-        row = self.layout.row()
-        row.prop(context.scene, "include_transform", text="Include Location", toggle=True)
-        row.prop(context.scene, "IncludeCurve", text="Include Curve Geometry", toggle=True)
+       
         col = self.layout.column(align=True)
-        col.prop(context.scene, "Yup", text="Y-Up", toggle=True)
+        
+        #---Unity and more Options---
+        
+        if not context.scene.MoreOptions:
+            # Dropdown closed, no box
+            box = col.box()
+            row = box.row()
+            icon = 'TRIA_RIGHT'
+            row.prop(context.scene, "MoreOptions", icon=icon, text="More Options", emboss=False, toggle=True)
+        else:
+            # Dropdown open, everything inside a box
+            box = col.box()
+            row = box.row()
+            icon = 'TRIA_DOWN'
+            row.prop(context.scene, "MoreOptions", icon=icon, text="More Options", emboss=False, toggle=True)
 
-        # Proper spacing
-        col = layout.column(align=True)
-        col.separator()
+            row = box.row()
+            row.prop(context.scene, "Yup", text="Y-Up")
+            row.prop(context.scene, "JoinAll", text="Join Meshes at Export")
+            row = box.row()
+            row.prop(context.scene, "include_transform", text="Include Location")
+            row.prop(context.scene, "IncludeCurve", text="Include Curve Geometry")
 
         # Export buttons
-        col.operator("export.selected_objects", text="Export Selected Objects")
-        col.operator("export.parented_objects", text="Export Each Hierarchy")
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("export.selected_objects", text="Export Selected Objects", icon='STICKY_UVS_DISABLE')
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("export.parented_objects", text="Export Each Hierarchy", icon='STICKY_UVS_LOC')
