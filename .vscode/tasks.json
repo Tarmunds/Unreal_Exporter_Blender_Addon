@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Zip whole project",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$ws = '${workspaceFolder}'; $parent = Split-Path -Parent $ws; $dest = Join-Path $parent ('${workspaceFolderBasename}.zip'); Compress-Archive -Path $ws -DestinationPath $dest -Force; Write-Host \"Created: $dest\""
+      ],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}
