@@ -54,3 +54,23 @@ def export_object(main_obj, path, self):
     except Exception as e:
         self.report({'ERROR'}, f"Export failed for {file_path}: {str(e)}")
         return False
+    
+def convert_to_mesh(objects):
+    for obj in objects:
+        try:
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.convert(target='MESH')
+        except Exception as e:
+            print(f"Conversion to mesh failed for {obj.name}: {str(e)}")
+
+def find_top_parent_in_one_hierarchy(hierarchy_objects):
+    for obj in hierarchy_objects:
+        if not obj.parent:
+            parent = obj
+            break
+    return parent
+
+def restore_selection(selection):
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in selection:
+        obj.select_set(True)

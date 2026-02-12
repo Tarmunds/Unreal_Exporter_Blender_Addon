@@ -1,5 +1,5 @@
 import bpy, os
-from .Functions import check_path_valid, export_object
+from .Functions import check_path_valid, export_object, convert_to_mesh, find_top_parent_in_one_hierarchy, restore_selection
 from bpy.types import Operator
 
 
@@ -31,7 +31,7 @@ class UEE_ExportSelectedObjects(Operator):
                 obj.location = original_location
             if not c:
                 return {'CANCELLED'}
-        for obj in selection:obj.select_set(True)
+        restore_selection(selection)
         return {'FINISHED'}
 
 
@@ -42,31 +42,21 @@ class UEE_ExportParentedObjects(Operator):
     def execute(self, context):
         uee_props = context.scene.uee_properties
         path = uee_props.export_path
-
-        if not path:
-            self.report({'ERROR'}, "Export path is empty. Please specify a valid path.")
-            return {'CANCELLED'}
-
-        export_format = uee_props.export_format.lower()
         include_transform = uee_props.include_transform
-        include_curve = uee_props.include_curve
-        basedir = os.path.dirname(bpy.data.filepath)
-        export_dir = os.path.join(basedir, path)
-        y_up = uee_props.y_up
         join_meshes = uee_props.join_meshes
 
-        try:
-            os.makedirs(export_dir, exist_ok=True)
-        except OSError as e:
-            self.report({'ERROR'}, f"Failed to create directory: {export_dir}. Error: {e}")
+        valid_path, export_dir = check_path_valid(path, self)
+        if not valid_path:
             return {'CANCELLED'}
 
         processed_parents = set()
+        selection = context.selected_objects
         for obj in context.selected_objects:
+            #getting to top parent of the hierarchy
             parent = obj
             while parent.parent:
                 parent = parent.parent
-
+            #skip if already processed
             if parent in processed_parents:
                 continue
             processed_parents.add(parent)
@@ -75,41 +65,30 @@ class UEE_ExportParentedObjects(Operator):
             if not include_transform:
                 parent.location = (0, 0, 0)
 
-            # deselect everything
+            # deselect everything and select hierarchy
             bpy.ops.object.select_all(action='DESELECT')
             parent.select_set(True)
             for child in parent.children_recursive:
                 child.select_set(True)
 
-            name = bpy.path.clean_name(parent.name)
-            fn = os.path.join(export_dir, f"{name}.{export_format}")
-
-            if include_curve:
-                ObjectTypeExported = {'MESH', 'ARMATURE', 'OTHER'}
+            if not join_meshes:
+                c = export_object(parent, export_dir, self)
+                if not include_transform:
+                    parent.location = original_location
+                if not c:
+                    return {'CANCELLED'}
             else:
-                ObjectTypeExported = {'MESH', 'ARMATURE'}
-
-            # --- JOIN ALL MODE ---
-            if join_meshes:
                 # duplicate hierarchy to avoid breaking original
                 bpy.ops.object.duplicate()
-                dup_objects = [o for o in context.selected_objects]
-                dup_parent = None
-                for o in dup_objects:
-                    if not o.parent:
-                        dup_parent = o
-                        break
+                ###dup_objects = [o for o in context.selected_objects]
+                duplicate_objects = context.selected_objects
+                duplicate_parent = find_top_parent_in_one_hierarchy(duplicate_objects)
 
                 # make all converted to mesh
-                for o in dup_objects:
-                    try:
-                        bpy.context.view_layer.objects.active = o
-                        bpy.ops.object.convert(target='MESH')
-                    except:
-                        pass
+                convert_to_mesh(duplicate_objects)
 
                 # join them all into one
-                bpy.context.view_layer.objects.active = dup_parent
+                bpy.context.view_layer.objects.active = duplicate_parent
                 bpy.ops.object.join()
                 joined_obj = bpy.context.view_layer.objects.active
 
@@ -117,62 +96,15 @@ class UEE_ExportParentedObjects(Operator):
                 bpy.ops.object.select_all(action='DESELECT')
                 joined_obj.select_set(True)
 
-                try:
-                    if export_format == "fbx":
-                        bpy.ops.export_scene.fbx(
-                            filepath=fn,
-                            use_selection=True,
-                            apply_unit_scale=False,
-                            object_types={'MESH'},
-                            mesh_smooth_type='FACE',
-                            use_mesh_modifiers=True,
-                            bake_space_transform=y_up
-                        )
-                    elif export_format == "obj":
-                        bpy.ops.wm.obj_export(
-                            filepath=fn,
-                            check_existing=True
-                        )
-                    else:
-                        self.report({'ERROR'}, f"Unsupported export format: {export_format}")
-                        return {'CANCELLED'}
-                except Exception as e:
-                    self.report({'ERROR'}, f"Export failed for {fn}: {str(e)}")
-                    return {'CANCELLED'}
-
-                # delete duplicates (restore original hierarchy automatically)
+                c = export_object(parent, export_dir, self)
+                if not include_transform:
+                    parent.location = original_location
                 bpy.ops.object.delete()
-
-            else:
-                # --- NORMAL MODE ---
-                try:
-                    if export_format == "fbx":
-                        bpy.ops.export_scene.fbx(
-                            filepath=fn,
-                            use_selection=True,
-                            apply_unit_scale=False,
-                            object_types=ObjectTypeExported,
-                            mesh_smooth_type='FACE',
-                            use_mesh_modifiers=True,
-                            bake_space_transform=y_up
-                        )
-                    elif export_format == "obj":
-                        bpy.ops.wm.obj_export(
-                            filepath=fn,
-                            check_existing=True
-                        )
-                    else:
-                        self.report({'ERROR'}, f"Unsupported export format: {export_format}")
-                        return {'CANCELLED'}
-                except Exception as e:
-                    self.report({'ERROR'}, f"Export failed for {fn}: {str(e)}")
+                if not c:
                     return {'CANCELLED'}
 
-            if not include_transform:
-                parent.location = original_location
 
-            self.report({'INFO'}, f"Written: {fn}")
-
+        restore_selection(selection)
         return {'FINISHED'}
 
 
@@ -197,13 +129,6 @@ class UEE_SelectSavedPathOperator(Operator):
         saved_path = uee_props.saved_paths[int(uee_props.saved_paths_enum)].name
         uee_props.export_path = saved_path
         return {'FINISHED'}
-
-def update_saved_paths_enum(self, context):
-    items = [(str(i), path.name, "") for i, path in enumerate(context.scene.saved_paths)]
-    return items
-
-def menu_func_export(self, context):
-    self.layout.operator(UEE_ExportSelectedObjects.bl_idname, text="Export Selected Unreal Ready (fbx/obj)")
 
 _classes = (
     UEE_ExportSelectedObjects, 
