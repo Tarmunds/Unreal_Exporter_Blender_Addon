@@ -1,6 +1,7 @@
-import bpy
-import os
+import bpy, os
+from .Functions import check_path_valid, export_object
 from bpy.types import Operator
+
 
 class UEE_ExportSelectedObjects(Operator):
     bl_idname = "export.selected_objects"
@@ -10,23 +11,10 @@ class UEE_ExportSelectedObjects(Operator):
     def execute(self, context):
         uee_props = context.scene.uee_properties
         path = uee_props.export_path
-
-        if not path:
-            self.report({'ERROR'}, "Export path is empty. Please specify a valid path.")
-            return {'CANCELLED'}
-
-        export_format = uee_props.export_format.lower()
         include_transform = uee_props.include_transform
-        include_curve = uee_props.include_curve
-        basedir = os.path.dirname(bpy.data.filepath)
-        export_dir = os.path.join(basedir, path)
-        y_up = uee_props.y_up
 
-
-        try:
-            os.makedirs(export_dir, exist_ok=True)
-        except OSError as e:
-            self.report({'ERROR'}, f"Failed to create directory: {export_dir}. Error: {e}")
+        valid_path, export_dir = check_path_valid(path, self)
+        if not valid_path:
             return {'CANCELLED'}
 
         selection = context.selected_objects
@@ -38,42 +26,12 @@ class UEE_ExportSelectedObjects(Operator):
             if not include_transform:
                 obj.location = (0, 0, 0)
 
-            name = bpy.path.clean_name(obj.name)
-            fn = os.path.join(export_dir, f"{name}.{export_format}")
-
-            if include_curve:
-                ObjectTypeExported = 'MESH', 'ARMATURE', 'OTHER'
-            else :
-                ObjectTypeExported = 'MESH', 'ARMATURE'
-
-            try:
-                if export_format == "fbx":
-                    bpy.ops.export_scene.fbx(
-                        filepath=fn,
-                        use_selection=True,
-                        apply_unit_scale=False,
-                        object_types=set(ObjectTypeExported),
-                        mesh_smooth_type='FACE',
-                        use_mesh_modifiers=True,
-                        bake_space_transform=y_up
-                    )
-                elif export_format == "obj":
-                    bpy.ops.wm.obj_export(
-                        filepath=fn,
-                        check_existing=True
-                    )
-                else:
-                    self.report({'ERROR'}, f"Unsupported export format: {export_format}")
-                    return {'CANCELLED'}
-            except Exception as e:
-                self.report({'ERROR'}, f"Export failed for {fn}: {str(e)}")
-                return {'CANCELLED'}
-
+            c = export_object(obj, export_dir, self)
             if not include_transform:
                 obj.location = original_location
-
-            self.report({'INFO'}, f"Written: {fn}")
-
+            if not c:
+                return {'CANCELLED'}
+        for obj in selection:obj.select_set(True)
         return {'FINISHED'}
 
 
