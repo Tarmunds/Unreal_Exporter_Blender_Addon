@@ -13,14 +13,15 @@ bl_info = {
 }
 
 _SubModules = [
+    "Utils.PanelUtils",
     "UEE.Functions",
     "UEE.Properties",
     "UEE.Operators",
     "UEE.Panels",
-    #"CT.Functions",
-    #"CT.Properties",
-    #"CT.Operators",
-    #"CT.Panels",
+    "CT.Functions",
+    "CT.Properties",
+    "CT.Operators",
+    "CT.Panels",
 ] 
 
 _modules = tuple(importlib.import_module(f".{name}", __name__) for name in _SubModules)

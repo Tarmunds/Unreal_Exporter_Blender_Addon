@@ -1,4 +1,4 @@
-import bpy, os
+import bpy
 from .Functions import check_path_valid, export_object, convert_to_mesh, find_top_parent_in_one_hierarchy, restore_selection
 from bpy.types import Operator
 
