@@ -205,7 +205,7 @@ def build_convex_hull_mesh_from_points(points, name="KDOP_HULL"):
     finally:
         bm.free()
 
-def create_collision_object(source_obj, mesh, obj_name, display_wire=True, parent=True):
+def create_collision_object(source_obj, mesh, obj_name, display_wire=True, parent=True, context=None):
     col_obj = bpy.data.objects.new(obj_name, mesh)
 
     # Link to the same collections as the source object
@@ -222,11 +222,68 @@ def create_collision_object(source_obj, mesh, obj_name, display_wire=True, paren
         col_obj.parent = source_obj
         col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
 
-    display_wireframe(col_obj, display=display_wire)
+    set_display(col_obj, context)
 
     return col_obj
 
-def display_wireframe(obj, display=True):
-    if display:
-        obj.display_type = "WIRE"
+def set_display(obj, context):
+    ct_props = context.scene.ct_properties
+    wire = ct_props.wire_display
+    color = ct_props.color_display
+    mat, mat_color = assign_collision_material(obj, mat_color=ct_props.mat_color)
+    if wire and color:
+        obj.display_type = "SOLID"
         obj.show_in_front = True
+        obj.show_wire = True
+        mat.diffuse_color = mat_color
+    elif wire:
+        obj.display_type = "WIRE"
+        obj.show_in_front = False
+        obj.show_wire = False
+        mat.diffuse_color = (1, 1, 1, 1)
+    elif color:
+        obj.display_type = "SOLID"
+        obj.show_in_front = True
+        obj.show_wire = False
+        mat.diffuse_color = mat_color
+    else:
+        obj.display_type = "SOLID"
+        obj.show_in_front = False
+        obj.show_wire = False
+        mat.diffuse_color = (1, 1, 1, 1)
+
+def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
+    mat_name = "M_CT_Collision_Mat"
+    mat = bpy.data.materials.get(mat_name)
+    if mat is None:
+        mat = bpy.data.materials.new(mat_name)
+        mat.diffuse_color = mat_color
+        mat.roughness = 1.0
+    if obj.data.materials:
+        obj.data.materials[0] = mat
+    else:
+        obj.data.materials.append(mat)
+    return mat, mat_color
+
+def get_collision_objects():
+    return [
+        obj for obj in bpy.data.objects
+        if obj.type == 'MESH' and (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_"))
+    ]
+
+def update_collision_object_display(self, context):
+    collision_meshes = get_collision_objects()
+    for obj in collision_meshes:
+        set_display(obj, context)
+
+def update_color_display(self, context):
+    ct_props = context.scene.ct_properties
+    mat_name = "M_CT_Collision_Mat"
+    mat = bpy.data.materials.get(mat_name)
+    if mat:
+        mat.diffuse_color = ct_props.mat_color
+
+def set_collision_objects_visibility(visible):
+    collision_meshes = get_collision_objects()
+    for obj in collision_meshes:
+        obj.hide_viewport = not visible

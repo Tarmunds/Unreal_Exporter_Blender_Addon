@@ -13,7 +13,7 @@ class CT_Panel(bpy.types.Panel):
         ct_props = context.scene.ct_properties
 
         row = go_to_row(layout)
-        row.label(text="This panel is for testing and development purposes only.", icon='ERROR')
+        row.prop(ct_props, "color_display", text="Color Display", toggle=True)
         row.prop(ct_props, "wire_display", text="Wireframe Display", toggle=True)
         row = go_to_row(layout)
         row.operator("ct.add_collision_to_selected", text="Add Cube Collision to Selected", icon='CUBE')
@@ -46,7 +46,11 @@ class CT_Panel(bpy.types.Panel):
             row.prop(ct_props, "kdop_inside_epsilon", text="Inside Epsilon")
             row = go_to_row(box)
             row.prop(ct_props, "kdop_name_prefix", text="Prefix")
-
+        
+        box = dropdown_menu(layout, ct_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
+        if box:
+            row = go_to_row(box)
+            row.prop(ct_props, "mat_color", text="Collision Color")
     
 _classes = (
     CT_Panel,

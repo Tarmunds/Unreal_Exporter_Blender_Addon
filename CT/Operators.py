@@ -1,3 +1,4 @@
+from multiprocessing import context
 import bpy
 from bpy.types import Operator
 from .Functions import *
@@ -66,6 +67,7 @@ class CT_GenerateConvexCollisionToSelected(Operator):
                 break
             num += 1
         joined_obj.name = f"UCX_{name}_{num:02}"
+        set_display(joined_obj, context)
 
         return {'FINISHED'}
 
@@ -76,13 +78,23 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
 
     def execute(self, context):
         ct_props = context.scene.ct_properties
-        obj = context.active_object
 
-        if not obj or obj.type != "MESH":
-            self.report({"ERROR"}, "Select an active mesh object")
+        selection = context.selected_objects
+
+        if not selection or selection[0].type != "MESH":
+            self.report({"ERROR"}, "Select at least one mesh object")
             return {"CANCELLED"}
 
-
+        if len(selection) > 1:
+            bpy.ops.object.duplicate()
+            duplicate_objects = context.selected_objects
+            convert_to_mesh(duplicate_objects)
+            bpy.ops.object.join()
+            obj = context.selected_objects[0]
+            should_cleanup = True
+        else :
+            obj = selection[0]
+            should_cleanup = False
 
         # Sample verts in requested space
         verts = get_object_vertices(obj, use_evaluated_mesh=ct_props.kdop_use_evaluated_mesh, space=ct_props.kdop_space)
@@ -118,6 +130,7 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
             col_name,
             display_wire=ct_props.wire_display,
             parent=ct_props.kdop_parent_to_source,
+            context=context,
         )
 
         # Select the created hull
@@ -126,10 +139,28 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
         col_obj.select_set(True)
         context.view_layer.objects.active = col_obj
 
+        if should_cleanup:
+            bpy.data.objects.remove(obj, do_unlink=True)
+
         self.report(
             {"INFO"},
             f"Generated {ct_props.kdop_mode} collision hull: {col_obj.name} (points: {len(points)}, planes: {len(planes)})",
         )
+        return {"FINISHED"}
+    
+class CT_SetCollisionVisibility(Operator):
+    bl_idname = "ct.set_collision_visibility"
+    bl_label = "Set Collision Visibility"
+    bl_options = {"REGISTER", "UNDO"}
+
+    visible: bpy.props.BoolProperty(
+        name="Visible",
+        default=True,
+        description="Set collision objects visibility in viewport",
+    )
+
+    def execute(self, context):
+        set_collision_objects_visibility(self.visible)
         return {"FINISHED"}
 
 
@@ -138,6 +169,7 @@ _classes = (
     CT_AddCollisionToSelected,
     CT_GenerateConvexCollisionToSelected,
     CT_KDOP_generate_collision,
+    CT_SetCollisionVisibility,
 )
 
 def register():

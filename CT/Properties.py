@@ -1,6 +1,7 @@
 import bpy
 from bpy.props import (BoolProperty, FloatVectorProperty, EnumProperty, PointerProperty, IntProperty, StringProperty, FloatProperty)
 from bpy.types import PropertyGroup
+from .Functions import update_collision_object_display, update_color_display
 
 class CT_Properties(PropertyGroup):
     target_face_count: IntProperty(
@@ -15,24 +16,46 @@ class CT_Properties(PropertyGroup):
         description="Bake simplification to the generated collision mesh. This can help reduce the number of faces and improve performance, but may result in less accurate collision.",
         default=True,
     )
-    wire_display: bpy.props.BoolProperty(
+    wire_display: BoolProperty(
         name="Wire Display",
         default=True,
         description="Display collision object as wire and in front",
+        update=update_collision_object_display,
     )
-    convex_options: bpy.props.BoolProperty(
+    color_display: BoolProperty(
+        name="Color Display",
+        default=False,
+        description="Display collision object with a color overlay",
+        update=update_collision_object_display,
+    )
+    mat_color: FloatVectorProperty(
+        name="Collision Color",
+        subtype='COLOR',
+        size=4,
+        default=(0.31, 0.258, 1.0, 0.278),
+        min=0.0,
+        max=1.0,
+        description="Color for collision objects when Color Display is enabled",
+        update=update_color_display,
+    )
+    convex_options: BoolProperty(
         name="Show Convex Hull Options",
         default=False,
         description="Show additional options for convex hull generation",
     )
+    advanced_options: BoolProperty(
+        name="Show Advanced Options",
+        default=False,
+        description="Show advanced options for collision generation (use with caution)",
+    )
 
     ###Kdop properties###
-    kdop_options: bpy.props.BoolProperty(
+    kdop_options: BoolProperty(
         name="Show k-DOP Options",
         default=False,
         description="Show additional options for k-DOP generation",
     )
-    kdop_mode: bpy.props.EnumProperty(
+    kdop_mode: EnumProperty(
         name="Collision Type",
         items=[
             ("DOP6", "Box Simplified Collision", "6 planes"),
@@ -43,9 +66,9 @@ class CT_Properties(PropertyGroup):
             ("DOP18", "18DOP Simplified Collision", "18 planes"),
             ("DOP26", "26DOP Simplified Collision", "26 planes"),
         ],
-        default="DOP26",
+        default="DOP14",
     )
-    kdop_space: bpy.props.EnumProperty(
+    kdop_space: EnumProperty(
         name="Axis Space",
         items=[
             ("LOCAL", "Local", "Use the object's local axes"),
@@ -53,24 +76,24 @@ class CT_Properties(PropertyGroup):
         ],
         default="WORLD",
     )
-    kdop_use_evaluated_mesh: bpy.props.BoolProperty(
+    kdop_use_evaluated_mesh: BoolProperty(
         name="Use Evaluated Mesh (Modifiers)",
         default=True,
         description="Use mesh after modifiers (recommended)",
     )
-    kdop_inside_epsilon: bpy.props.FloatProperty(
+    kdop_inside_epsilon: FloatProperty(
         name="Inside Epsilon",
         default=1e-6,
         min=1e-9,
         max=1e-2,
         description="Tolerance for inside test",
     )
-    kdop_name_prefix: bpy.props.StringProperty(
+    kdop_name_prefix: StringProperty(
         name="Name Prefix",
         default="UCX_",
         description="Prefix for collision object name (Unreal convention is UCX_)",
     )
-    kdop_parent_to_source: bpy.props.BoolProperty(
+    kdop_parent_to_source: BoolProperty(
         name="Parent To Source",
         default=True,
         description="Parent collision object to the source object",
