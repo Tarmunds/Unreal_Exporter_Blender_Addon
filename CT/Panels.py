@@ -64,6 +64,9 @@ class CT_Panel(bpy.types.Panel):
             row.label(text="Multiple Selection Behavior:")
             row.prop(ct_props, "multiple_selection_behavior", text="Multiple Selection Behavior", expand=True)
             row = go_to_row(box)
+            row.operator("ct.delete_collision", text="Delete All Collision", icon='TRASH').selected_hierarchy = False
+            row.operator("ct.delete_collision", text="Delete Hierarchy Collision", icon='TRASH').selected_hierarchy = True
+            row = go_to_row(box)
             row.prop(ct_props, "mat_color", text="Collision Color")
     
 _classes = (

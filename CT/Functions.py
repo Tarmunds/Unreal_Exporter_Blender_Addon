@@ -215,13 +215,6 @@ def create_collision_object(source_obj, mesh, obj_name, display_wire=True, paren
     else:
         bpy.context.collection.objects.link(col_obj)
 
-    # Match transforms
-    #col_obj.matrix_world = source_obj.matrix_world.copy()
-
-    #if parent:
-        #col_obj.parent = source_obj
-        #col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
-
     set_display(col_obj, context)
 
     return col_obj
@@ -293,19 +286,11 @@ def set_collision_objects_visibility(visible, context):
     if ct_props.visibility_button_field == "All_MESH":
         for obj in collision_meshes:
             obj.hide_viewport = not visible
-            
+
     elif ct_props.visibility_button_field == "CURRENT_HIERARCHY":
-        processed_parents = set()
-        for obj in context.selected_objects:
-            #getting to top parent of the hierarchy
-            parent = obj
-            while parent.parent:
-                parent = parent.parent
-            #skip if already processed
-            if parent in processed_parents:
-                continue
-            processed_parents.add(parent)
-            for child in parent.children_recursive:
+        obj = get_top_parents(context.selected_objects)
+        for obj in obj :
+            for child in obj.children_recursive:
                 if child in collision_meshes:
                     child.hide_viewport = not visible
 
@@ -315,3 +300,12 @@ def update_selectable(self, context):
     collision_meshes = get_collision_objects()
     for obj in collision_meshes:
         obj.hide_select = not ct_props.selectable
+
+def get_top_parents(objects):
+    top_parents = set()
+    for obj in objects:
+        parent = obj
+        while parent.parent:
+            parent = parent.parent
+        top_parents.add(parent)
+    return top_parents

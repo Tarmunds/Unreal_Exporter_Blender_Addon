@@ -1,5 +1,5 @@
 import bpy
-from .Functions import check_path_valid, export_object, convert_to_mesh, find_top_parent_in_one_hierarchy, restore_selection
+from .Functions import *
 from bpy.types import Operator
 
 
@@ -16,6 +16,8 @@ class UEE_ExportSelectedObjects(Operator):
         valid_path, export_dir = check_path_valid(path, self)
         if not valid_path:
             return {'CANCELLED'}
+        
+        collision_selectable_state = set_collision_objects_selectable(context)
 
         selection = context.selected_objects
         for obj in selection:
@@ -31,6 +33,8 @@ class UEE_ExportSelectedObjects(Operator):
                 obj.location = original_location
             if not c:
                 return {'CANCELLED'}
+            
+        reset_collision_objects_selectable(context, collision_selectable_state)
         restore_selection(selection)
         return {'FINISHED'}
 
@@ -48,6 +52,8 @@ class UEE_ExportParentedObjects(Operator):
         valid_path, export_dir = check_path_valid(path, self)
         if not valid_path:
             return {'CANCELLED'}
+        
+        collision_selectable_state = set_collision_objects_selectable(context)
 
         processed_parents = set()
         selection = context.selected_objects
@@ -103,7 +109,7 @@ class UEE_ExportParentedObjects(Operator):
                 if not c:
                     return {'CANCELLED'}
 
-
+        reset_collision_objects_selectable(context, collision_selectable_state)
         restore_selection(selection)
         return {'FINISHED'}
 

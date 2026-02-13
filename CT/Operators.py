@@ -33,51 +33,76 @@ class CT_GenerateConvexCollisionToSelected(Operator):
             self.report({'WARNING'}, "No objects selected.")
             return {'CANCELLED'}
 
+        if ct_props.multiple_selection_behavior == "ONE_COLLISION":
+            c = [1]
+            multiple = False
+        elif ct_props.multiple_selection_behavior == "MULTIPLE_COLLISIONS":
+            c = []
+            multiple = True
+            for obj in selection:
+                c.append(obj)
+        final_collision_objects = []
+        for c in c:
+            if multiple :
+                bpy.ops.object.select_all(action='DESELECT')
+                c.select_set(True)
 
-        active_obj = context.view_layer.objects.active
+            active_obj = context.view_layer.objects.active
+            #getting name of active or first of the list
+            if active_obj and not multiple and active_obj in selection: 
+                name = bpy.path.clean_name(active_obj.name) 
+                source_obj = active_obj
+            else: 
+                name = bpy.path.clean_name(context.selected_objects[0].name)
+                source_obj = context.selected_objects[0]
 
-        #getting name of active or first of the list
-        if active_obj : 
-            name = bpy.path.clean_name(active_obj.name) 
-            source_obj = active_obj
-        else: 
-            name = bpy.path.clean_name(context.selected_objects[0].name)
-            source_obj = context.selected_objects[0]
+            bpy.ops.object.duplicate()
+            duplicate_objects = context.selected_objects
+            convert_to_mesh(duplicate_objects)
+            
+            bpy.ops.object.join()
+            
+            joined_obj = context.selected_objects[0]
+            bpy.context.view_layer.objects.active = joined_obj
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.convex_hull()
+            bpy.ops.object.mode_set(mode='OBJECT')
 
-        bpy.ops.object.duplicate()
-        duplicate_objects = context.selected_objects
-        convert_to_mesh(duplicate_objects)
-        bpy.ops.object.join()
+            data = joined_obj.data
+            face_count = len(data.polygons)
+            ratio = clamp(ct_props.target_face_count / face_count if face_count > 0 else 1.0)
+
+            dec = joined_obj.modifiers.new(name="Decimate", type='DECIMATE')
+            dec.decimate_type = 'COLLAPSE'
+            dec.ratio = ratio
+            dec.use_collapse_triangulate = True
+            if ct_props.bake_simplification :
+                duplicate_objects = convert_to_mesh(joined_obj)
+
+            num = 1
+            while True:
+                name_exists = any(o.name == f"UCX_{name}_{num:02}" for o in bpy.data.objects)
+                if not name_exists:
+                    break
+                num += 1
+            joined_obj.name = f"UCX_{name}_{num:02}"
+            set_display(joined_obj, context)
+
+            if ct_props.convex_parent:
+                # Save world transform BEFORE parenting
+                mw = joined_obj.matrix_world.copy()
+
+                joined_obj.parent = source_obj
+                joined_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+
+                # Restore world transform so parenting never moves it
+                joined_obj.matrix_world = mw
+
+            final_collision_objects.append(joined_obj)
         
-        joined_obj = context.selected_objects[0]
-        bpy.context.view_layer.objects.active = joined_obj
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.convex_hull()
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-        data = joined_obj.data
-        face_count = len(data.polygons)
-        ratio = clamp(ct_props.target_face_count / face_count if face_count > 0 else 1.0)
-
-        dec = joined_obj.modifiers.new(name="Decimate", type='DECIMATE')
-        dec.decimate_type = 'COLLAPSE'
-        dec.ratio = ratio
-        dec.use_collapse_triangulate = True
-        if ct_props.bake_simplification :
-            duplicate_objects = convert_to_mesh(joined_obj)
-
-        num = 1
-        while True:
-            name_exists = any(o.name == f"UCX_{name}_{num:02}" for o in bpy.data.objects)
-            if not name_exists:
-                break
-            num += 1
-        joined_obj.name = f"UCX_{name}_{num:02}"
-        set_display(joined_obj, context)
-        if ct_props.convex_parent:
-            joined_obj.parent = source_obj
-            joined_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
-
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj in final_collision_objects:
+            obj.select_set(True)
         return {'FINISHED'}
 
 class CT_KDOP_generate_collision(bpy.types.Operator):
@@ -93,89 +118,107 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
             return {"CANCELLED"}
         
 
+        if ct_props.multiple_selection_behavior == "ONE_COLLISION":
+            c = [1]
+            multiple = False
+        elif ct_props.multiple_selection_behavior == "MULTIPLE_COLLISIONS":
+            c = []
+            multiple = True
+            for obj in selection:
+                c.append(obj)
+        final_collision_objects = []
+        for c in c:
+            if multiple :
+                bpy.ops.object.select_all(action='DESELECT')
+                c.select_set(True)
 
-        active_obj = context.view_layer.objects.active
-        if active_obj : 
-            source_obj = active_obj
-        else: 
-            source_obj = context.selected_objects[0]
+            active_obj = context.view_layer.objects.active
+            if active_obj and not multiple and active_obj in selection: 
+                source_obj = active_obj
+            else: 
+                source_obj = context.selected_objects[0]
 
-        if len(selection) > 1:
-            bpy.ops.object.duplicate()
-            duplicate_objects = context.selected_objects
-            convert_to_mesh(duplicate_objects)
-            bpy.ops.object.join()
-            obj = context.selected_objects[0]
-            should_cleanup = True
-        else :
-            obj = selection[0]
-            should_cleanup = False
+            if len(selection) > 1:
+                bpy.ops.object.duplicate()
+                duplicate_objects = context.selected_objects
+                convert_to_mesh(duplicate_objects)
+                bpy.ops.object.join()
+                obj = context.selected_objects[0]
+                should_cleanup = True
+            else :
+                obj = selection[0]
+                should_cleanup = False
+                
+
+            # Sample verts in requested space
+            verts = get_object_vertices(obj, use_evaluated_mesh=ct_props.kdop_use_evaluated_mesh, space=ct_props.kdop_space)
+            if not verts:
+                self.report({"ERROR"}, "Object has no vertices")
+                return {"CANCELLED"}
+
+            dirs = kdop_directions(ct_props.kdop_mode)
+            planes = build_kdop_planes(verts, dirs)
+
+            points = generate_kdop_points(planes, inside_eps=ct_props.kdop_inside_epsilon)
+            if len(points) < 4:
+                self.report(
+                    {"ERROR"},
+                    f"Not enough hull points generated ({len(points)}). Try another DOP type or increase Inside Epsilon.",
+                )
+                return {"CANCELLED"}
+
+            # If we computed in WORLD space, convert points back to LOCAL space so the hull mesh is local
+            if ct_props.kdop_space == "WORLD":
+                inv = obj.matrix_world.inverted_safe()
+                points = [inv @ p for p in points]
+
+            hull_mesh = build_convex_hull_mesh_from_points(points, name=f"{obj.name}_{ct_props.kdop_mode}_MESH")
+            if hull_mesh is None:
+                self.report({"ERROR"}, "Failed to build convex hull mesh")
+                return {"CANCELLED"}
             
+            #suffix
+            mode_name = ct_props.kdop_mode.replace("_", "")
+            num = 1
+            while True:
+                name_exists = any(o.name == f"{ct_props.kdop_name_prefix}{obj.name}_{mode_name}-{num:02}" for o in bpy.data.objects)
+                if not name_exists:
+                    break
+                num += 1
+            col_name = f"{ct_props.kdop_name_prefix}{source_obj.name}_{mode_name}-{num:02}"
 
-        # Sample verts in requested space
-        verts = get_object_vertices(obj, use_evaluated_mesh=ct_props.kdop_use_evaluated_mesh, space=ct_props.kdop_space)
-        if not verts:
-            self.report({"ERROR"}, "Object has no vertices")
-            return {"CANCELLED"}
-
-        dirs = kdop_directions(ct_props.kdop_mode)
-        planes = build_kdop_planes(verts, dirs)
-
-        points = generate_kdop_points(planes, inside_eps=ct_props.kdop_inside_epsilon)
-        if len(points) < 4:
-            self.report(
-                {"ERROR"},
-                f"Not enough hull points generated ({len(points)}). Try another DOP type or increase Inside Epsilon.",
+            col_obj = create_collision_object(
+                source_obj,
+                hull_mesh,
+                col_name,
+                display_wire=ct_props.wire_display,
+                parent=ct_props.kdop_parent_to_source,
+                context=context,
             )
-            return {"CANCELLED"}
 
-        # If we computed in WORLD space, convert points back to LOCAL space so the hull mesh is local
-        if ct_props.kdop_space == "WORLD":
-            inv = obj.matrix_world.inverted_safe()
-            points = [inv @ p for p in points]
+            # Match transforms of duplicate if we created one, otherwise match source
+            col_obj.matrix_world = obj.matrix_world.copy()
+            # set parent
+            if ct_props.kdop_parent_to_source:
+                col_obj.parent = source_obj
+                col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+            # Select the created hull
+            bpy.ops.object.select_all(action="DESELECT")
+            col_obj.select_set(True)
+            context.view_layer.objects.active = col_obj
 
-        hull_mesh = build_convex_hull_mesh_from_points(points, name=f"{obj.name}_{ct_props.kdop_mode}_MESH")
-        if hull_mesh is None:
-            self.report({"ERROR"}, "Failed to build convex hull mesh")
-            return {"CANCELLED"}
-        
-        #suffix
-        mode_name = ct_props.kdop_mode.replace("_", "")
-        num = 1
-        while True:
-            name_exists = any(o.name == f"{ct_props.kdop_name_prefix}{obj.name}_{mode_name}-{num:02}" for o in bpy.data.objects)
-            if not name_exists:
-                break
-            num += 1
-        col_name = f"{ct_props.kdop_name_prefix}{source_obj.name}_{mode_name}-{num:02}"
+            if should_cleanup:
+                bpy.data.objects.remove(obj, do_unlink=True)
 
-        col_obj = create_collision_object(
-            source_obj,
-            hull_mesh,
-            col_name,
-            display_wire=ct_props.wire_display,
-            parent=ct_props.kdop_parent_to_source,
-            context=context,
-        )
+            self.report(
+                {"INFO"},
+                f"Generated {ct_props.kdop_mode} collision hull: {col_obj.name} (points: {len(points)}, planes: {len(planes)})",
+            )
+            final_collision_objects.append(col_obj)
 
-        # Match transforms of duplicate if we created one, otherwise match source
-        col_obj.matrix_world = obj.matrix_world.copy()
-        # set parent
-        if ct_props.kdop_parent_to_source:
-            col_obj.parent = source_obj
-            col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
-        # Select the created hull
         bpy.ops.object.select_all(action="DESELECT")
-        col_obj.select_set(True)
-        context.view_layer.objects.active = col_obj
-
-        if should_cleanup:
-            bpy.data.objects.remove(obj, do_unlink=True)
-
-        self.report(
-            {"INFO"},
-            f"Generated {ct_props.kdop_mode} collision hull: {col_obj.name} (points: {len(points)}, planes: {len(planes)})",
-        )
+        for obj in final_collision_objects:
+            obj.select_set(True)
         return {"FINISHED"}
     
 class CT_SetCollisionVisibility(Operator):
@@ -193,6 +236,39 @@ class CT_SetCollisionVisibility(Operator):
         set_collision_objects_visibility(self.visibility, context)
         return {"FINISHED"}
 
+class CT_DeleteCollision(Operator):
+    bl_idname = "ct.delete_collision"
+    bl_label = "Delete Collision"
+    bl_options = {"REGISTER", "UNDO"}
+
+    selected_hierarchy: bpy.props.BoolProperty(
+        name="Selected Hierarchy",
+        default=False,
+        description="Delete collision objects in the selected hierarchy instead of the whole scene",
+    )
+
+    def execute(self, context):
+        collision_objects = get_collision_objects()
+        if not collision_objects:
+            self.report({"WARNING"}, "No collision objects detected.")
+            return {"CANCELLED"}
+        
+        num_deleted = 0
+        if not self.selected_hierarchy :
+            for obj in collision_objects:
+                bpy.data.objects.remove(obj, do_unlink=True)
+                num_deleted += 1
+        else :
+            obj = get_top_parents(context.selected_objects)
+            for obj in obj:
+                for child in obj.children_recursive:
+                    if child in collision_objects:
+                        bpy.data.objects.remove(child, do_unlink=True)
+                        num_deleted += 1
+
+        self.report({"INFO"}, f"Deleted {num_deleted} collision objects.")
+        return {"FINISHED"}
+
 
 
 _classes = (
@@ -200,6 +276,7 @@ _classes = (
     CT_GenerateConvexCollisionToSelected,
     CT_KDOP_generate_collision,
     CT_SetCollisionVisibility,
+    CT_DeleteCollision,
 )
 
 def register():

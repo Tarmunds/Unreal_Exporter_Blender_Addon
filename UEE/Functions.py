@@ -81,3 +81,15 @@ def restore_selection(selection):
     bpy.ops.object.select_all(action='DESELECT')
     for obj in selection:
         obj.select_set(True)
+
+def set_collision_objects_selectable(context):
+    ct_props = context.scene.ct_properties
+    if not ct_props.selectable :
+        setattr(ct_props, "selectable", True)
+        return False
+    else:
+        return True
+    
+def reset_collision_objects_selectable(context, previous_state):
+    ct_props = context.scene.ct_properties
+    setattr(ct_props, "selectable", previous_state)
