@@ -15,6 +15,11 @@ class CT_Panel(bpy.types.Panel):
         row = go_to_row(layout)
         row.prop(ct_props, "color_display", text="Color Display", toggle=True)
         row.prop(ct_props, "wire_display", text="Wireframe Display", toggle=True)
+        row.prop(ct_props, "selectable", text="Selectable", toggle=True)
+        row = go_to_row(layout)
+        row.operator("ct.set_collision_visibility", text="Hide All Collisions", icon='HIDE_ON').visibility = False
+        row.operator("ct.set_collision_visibility", text="Show All Collisions", icon='HIDE_OFF').visibility = True
+        layout.separator()
         row = go_to_row(layout)
         row.operator("ct.add_collision_to_selected", text="Add Cube Collision to Selected", icon='CUBE')
         row = go_to_row(layout)
@@ -27,8 +32,10 @@ class CT_Panel(bpy.types.Panel):
         box = dropdown_menu(layout, ct_props, "convex_options", "Convex Hull Options", section_icon='MOD_SOLIDIFY')
         if box:
             row = go_to_row(box)
-            row.prop(ct_props, "bake_simplification", toggle=True)
             row.prop(ct_props, "target_face_count", slider=True)
+            row = go_to_row(box)
+            row.prop(ct_props, "bake_simplification", toggle=True)
+            row.prop(ct_props, "convex_parent", text="Parent to Source", toggle=True)
 
         row = go_to_row(layout, scale_y=2.0)
         row.operator("ct.kdop_generate_collision", text="Generate k-DOP Collision Hull", icon='MESH_ICOSPHERE')
@@ -47,6 +54,7 @@ class CT_Panel(bpy.types.Panel):
             row = go_to_row(box)
             row.prop(ct_props, "kdop_name_prefix", text="Prefix")
         
+        layout.separator()
         box = dropdown_menu(layout, ct_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
         if box:
             row = go_to_row(box)

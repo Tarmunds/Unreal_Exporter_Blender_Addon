@@ -35,8 +35,12 @@ class CT_GenerateConvexCollisionToSelected(Operator):
             return {'CANCELLED'}
         
         #getting name of active or first of the list
-        if active_obj : name = bpy.path.clean_name(active_obj.name) 
-        else: name = context.selected_objects[0].name
+        if active_obj : 
+            name = bpy.path.clean_name(active_obj.name) 
+            source_obj = active_obj
+        else: 
+            name = bpy.path.clean_name(context.selected_objects[0].name)
+            source_obj = context.selected_objects[0]
 
         bpy.ops.object.duplicate()
         duplicate_objects = context.selected_objects
@@ -68,6 +72,9 @@ class CT_GenerateConvexCollisionToSelected(Operator):
             num += 1
         joined_obj.name = f"UCX_{name}_{num:02}"
         set_display(joined_obj, context)
+        if ct_props.convex_parent:
+            joined_obj.parent = source_obj
+            joined_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
 
         return {'FINISHED'}
 
@@ -85,6 +92,12 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
             self.report({"ERROR"}, "Select at least one mesh object")
             return {"CANCELLED"}
 
+        active_obj = context.view_layer.objects.active
+        if active_obj : 
+            source_obj = active_obj
+        else: 
+            source_obj = context.selected_objects[0]
+
         if len(selection) > 1:
             bpy.ops.object.duplicate()
             duplicate_objects = context.selected_objects
@@ -95,6 +108,7 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
         else :
             obj = selection[0]
             should_cleanup = False
+            
 
         # Sample verts in requested space
         verts = get_object_vertices(obj, use_evaluated_mesh=ct_props.kdop_use_evaluated_mesh, space=ct_props.kdop_space)
@@ -122,10 +136,19 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
         if hull_mesh is None:
             self.report({"ERROR"}, "Failed to build convex hull mesh")
             return {"CANCELLED"}
+        
+        #suffix
+        mode_name = ct_props.kdop_mode.replace("_", "")
+        num = 1
+        while True:
+            name_exists = any(o.name == f"{ct_props.kdop_name_prefix}{obj.name}_{mode_name}-{num:02}" for o in bpy.data.objects)
+            if not name_exists:
+                break
+            num += 1
+        col_name = f"{ct_props.kdop_name_prefix}{source_obj.name}_{mode_name}-{num:02}"
 
-        col_name = f"{ct_props.kdop_name_prefix}{obj.name}_{ct_props.kdop_mode}"
         col_obj = create_collision_object(
-            obj,
+            source_obj,
             hull_mesh,
             col_name,
             display_wire=ct_props.wire_display,
@@ -133,9 +156,14 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
             context=context,
         )
 
+        # Match transforms of duplicate if we created one, otherwise match source
+        col_obj.matrix_world = obj.matrix_world.copy()
+        # set parent
+        if ct_props.kdop_parent_to_source:
+            col_obj.parent = source_obj
+            col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
         # Select the created hull
         bpy.ops.object.select_all(action="DESELECT")
-        obj.select_set(True)
         col_obj.select_set(True)
         context.view_layer.objects.active = col_obj
 
@@ -153,14 +181,14 @@ class CT_SetCollisionVisibility(Operator):
     bl_label = "Set Collision Visibility"
     bl_options = {"REGISTER", "UNDO"}
 
-    visible: bpy.props.BoolProperty(
+    visibility: bpy.props.BoolProperty(
         name="Visible",
         default=True,
         description="Set collision objects visibility in viewport",
     )
 
     def execute(self, context):
-        set_collision_objects_visibility(self.visible)
+        set_collision_objects_visibility(self.visibility)
         return {"FINISHED"}
 
 

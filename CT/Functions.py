@@ -216,11 +216,11 @@ def create_collision_object(source_obj, mesh, obj_name, display_wire=True, paren
         bpy.context.collection.objects.link(col_obj)
 
     # Match transforms
-    col_obj.matrix_world = source_obj.matrix_world.copy()
+    #col_obj.matrix_world = source_obj.matrix_world.copy()
 
-    if parent:
-        col_obj.parent = source_obj
-        col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+    #if parent:
+        #col_obj.parent = source_obj
+        #col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
 
     set_display(col_obj, context)
 
@@ -251,6 +251,9 @@ def set_display(obj, context):
         obj.show_in_front = False
         obj.show_wire = False
         mat.diffuse_color = (1, 1, 1, 1)
+    
+    obj.hide_select = not ct_props.selectable
+
 
 def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
     mat_name = "M_CT_Collision_Mat"
@@ -287,3 +290,9 @@ def set_collision_objects_visibility(visible):
     collision_meshes = get_collision_objects()
     for obj in collision_meshes:
         obj.hide_viewport = not visible
+
+def update_selectable(self, context):
+    ct_props = context.scene.ct_properties
+    collision_meshes = get_collision_objects()
+    for obj in collision_meshes:
+        obj.hide_select = not ct_props.selectable

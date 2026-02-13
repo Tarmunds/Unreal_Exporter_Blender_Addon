@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import (BoolProperty, FloatVectorProperty, EnumProperty, PointerProperty, IntProperty, StringProperty, FloatProperty)
 from bpy.types import PropertyGroup
-from .Functions import update_collision_object_display, update_color_display
+from .Functions import update_collision_object_display, update_color_display, update_selectable
 
 class CT_Properties(PropertyGroup):
     target_face_count: IntProperty(
@@ -38,6 +38,12 @@ class CT_Properties(PropertyGroup):
         description="Color for collision objects when Color Display is enabled",
         update=update_color_display,
     )
+    selectable: BoolProperty(
+        name="Selectable",
+        default=True,
+        description="Allow selection of collision objects in the viewport",
+        update=update_selectable,
+    )
     convex_options: BoolProperty(
         name="Show Convex Hull Options",
         default=False,
@@ -47,6 +53,11 @@ class CT_Properties(PropertyGroup):
         name="Show Advanced Options",
         default=False,
         description="Show advanced options for collision generation (use with caution)",
+    )
+    convex_parent: BoolProperty(
+        name="Parent To Source",
+        default=True,
+        description="Parent generated convex hull to the source object",
     )
 
     ###Kdop properties###
