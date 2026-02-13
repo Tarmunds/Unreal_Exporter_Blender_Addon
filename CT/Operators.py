@@ -6,6 +6,7 @@ from ..UEE.Functions import restore_selection, convert_to_mesh, find_top_parent_
 class CT_AddCollisionToSelected(Operator):
     bl_idname = "ct.add_collision_to_selected"
     bl_label = "Add Collision to Selected"
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         selection = context.selected_objects
@@ -68,12 +69,75 @@ class CT_GenerateConvexCollisionToSelected(Operator):
 
         return {'FINISHED'}
 
+class CT_KDOP_generate_collision(bpy.types.Operator):
+    bl_idname = "ct.kdop_generate_collision"
+    bl_label = "Generate k-DOP Collision Hull"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        ct_props = context.scene.ct_properties
+        obj = context.active_object
+
+        if not obj or obj.type != "MESH":
+            self.report({"ERROR"}, "Select an active mesh object")
+            return {"CANCELLED"}
+
+
+
+        # Sample verts in requested space
+        verts = get_object_vertices(obj, use_evaluated_mesh=ct_props.kdop_use_evaluated_mesh, space=ct_props.kdop_space)
+        if not verts:
+            self.report({"ERROR"}, "Object has no vertices")
+            return {"CANCELLED"}
+
+        dirs = kdop_directions(ct_props.kdop_mode)
+        planes = build_kdop_planes(verts, dirs)
+
+        points = generate_kdop_points(planes, inside_eps=ct_props.kdop_inside_epsilon)
+        if len(points) < 4:
+            self.report(
+                {"ERROR"},
+                f"Not enough hull points generated ({len(points)}). Try another DOP type or increase Inside Epsilon.",
+            )
+            return {"CANCELLED"}
+
+        # If we computed in WORLD space, convert points back to LOCAL space so the hull mesh is local
+        if ct_props.kdop_space == "WORLD":
+            inv = obj.matrix_world.inverted_safe()
+            points = [inv @ p for p in points]
+
+        hull_mesh = build_convex_hull_mesh_from_points(points, name=f"{obj.name}_{ct_props.kdop_mode}_MESH")
+        if hull_mesh is None:
+            self.report({"ERROR"}, "Failed to build convex hull mesh")
+            return {"CANCELLED"}
+
+        col_name = f"{ct_props.kdop_name_prefix}{obj.name}_{ct_props.kdop_mode}"
+        col_obj = create_collision_object(
+            obj,
+            hull_mesh,
+            col_name,
+            display_wire=ct_props.wire_display,
+            parent=ct_props.kdop_parent_to_source,
+        )
+
+        # Select the created hull
+        bpy.ops.object.select_all(action="DESELECT")
+        obj.select_set(True)
+        col_obj.select_set(True)
+        context.view_layer.objects.active = col_obj
+
+        self.report(
+            {"INFO"},
+            f"Generated {ct_props.kdop_mode} collision hull: {col_obj.name} (points: {len(points)}, planes: {len(planes)})",
+        )
+        return {"FINISHED"}
 
 
 
 _classes = (
     CT_AddCollisionToSelected,
     CT_GenerateConvexCollisionToSelected,
+    CT_KDOP_generate_collision,
 )
 
 def register():
