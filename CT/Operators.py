@@ -9,16 +9,40 @@ class CT_AddCollisionToSelected(Operator):
     bl_label = "Add Collision to Selected"
     bl_options = {"REGISTER", "UNDO"}
 
+    volume_type: bpy.props.EnumProperty(
+        name="Collision Volume Type",
+        items=[
+            ("BOX", "Box", ""),
+            ("SPHERE", "Sphere", ""),
+            ("CAPSULE", "Capsule", ""),
+        ],
+        default="BOX"
+    )
+
     def execute(self, context):
+        ct_props = context.scene.ct_properties
         selection = context.selected_objects
         if not selection:
-            self.report({'WARNING'}, "No objects selected.")
-            return {'CANCELLED'}
-
-        for obj in selection:
-            pass
+            self.report({"WARNING"}, "No objects selected.")
+            return {"CANCELLED"}
         
-        return {'FINISHED'}
+        if ct_props.try_to_fit_simple_collision:
+            match self.volume_type:
+                case "BOX":
+                    add_best_fit_box_collision_to_selected(context)
+                case "SPHERE":
+                    add_best_fit_sphere_collision_to_selected(context)
+                case "CAPSULE":
+                    pass
+        else:
+            match self.volume_type:
+                case "BOX":
+                    add_box_collision_to_selected(context, self)
+                case "SPHERE":
+                    add_sphere_collision_to_selected(context)
+                case "CAPSULE":
+                    add_capsule_collision_to_selected(context)
+        return {"FINISHED"}
     
 class CT_GenerateConvexCollisionToSelected(Operator):
     bl_idname = "ct.generate_convex_collision_to_selected"
@@ -79,13 +103,7 @@ class CT_GenerateConvexCollisionToSelected(Operator):
             if ct_props.bake_simplification :
                 duplicate_objects = convert_to_mesh(joined_obj)
 
-            num = 1
-            while True:
-                name_exists = any(o.name == f"UCX_{name}_{num:02}" for o in bpy.data.objects)
-                if not name_exists:
-                    break
-                num += 1
-            joined_obj.name = f"UCX_{name}_{num:02}"
+            joined_obj.name = find_available_collision_name(name, prefix="UCX")
             set_display(joined_obj, context)
 
             if ct_props.convex_parent:

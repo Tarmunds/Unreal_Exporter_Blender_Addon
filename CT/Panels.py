@@ -21,11 +21,11 @@ class CT_Panel(bpy.types.Panel):
         row.operator("ct.set_collision_visibility", text=f"Show {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_OFF').visibility = True
         layout.separator()
         row = go_to_row(layout)
-        row.operator("ct.add_collision_to_selected", text="Add Cube Collision to Selected", icon='CUBE')
+        row.operator("ct.add_collision_to_selected", text="Add Cube Collision to Selected", icon='CUBE').volume_type = "BOX"
         row = go_to_row(layout)
-        row.operator("ct.add_collision_to_selected", text="Add Sphere Collision to Selected", icon='SPHERE')
+        row.operator("ct.add_collision_to_selected", text="Add Sphere Collision to Selected", icon='SPHERE').volume_type = "SPHERE"
         row = go_to_row(layout)
-        row.operator("ct.add_collision_to_selected", text="Add Capsule Collision to Selected", icon='MESH_CYLINDER')
+        row.operator("ct.add_collision_to_selected", text="Add Capsule Collision to Selected", icon='MESH_CYLINDER').volume_type = "CAPSULE"
         row = go_to_row(layout, scale_y=2.0)
         row.operator("ct.generate_convex_collision_to_selected", text="Generate Convex Collision to Selected", icon='MOD_SOLIDIFY')
 

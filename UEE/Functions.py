@@ -1,4 +1,5 @@
-import os, bpy
+import os, bpy, bmesh
+from mathutils import Vector, Matrix
 
 
 def check_path_valid(path, self):

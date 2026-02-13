@@ -1,6 +1,7 @@
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
+from ..UEE.Functions import convert_to_mesh
 
 def clamp(x, a=0.0, b=1.0):
     return max(a, min(b, x))
@@ -90,7 +91,7 @@ def kdop_directions(mode: str):
 
     return [_unit(d) for d in dirs]
 
-def get_object_vertices(obj: bpy.types.Object, use_evaluated_mesh: bool, space: str):
+def get_object_vertices(obj: bpy.types.Object, use_evaluated_mesh: bool, space = "WORLD"):
     if obj.type != "MESH":
         return []
 
@@ -309,3 +310,206 @@ def get_top_parents(objects):
             parent = parent.parent
         top_parents.add(parent)
     return top_parents
+
+def get_relevant_source_objects(context):
+    selection = context.selected_objects
+    active_obj = context.view_layer.objects.active
+    if active_obj and active_obj in selection: 
+        return active_obj
+    elif selection:
+        return selection[0]
+    else:
+        return None
+
+def add_best_fit_box_collision_to_selected(context, use_evaluated_mesh=True, space="WORLD", parent=True):
+    selection = context.selected_objects
+    source_obj = get_relevant_source_objects(context)
+
+    for obj in selection:
+        if obj.type != "MESH":
+            continue
+
+        verts = get_object_vertices(obj, use_evaluated_mesh, space)
+        if not verts:
+            continue
+
+        min_v = Vector((min(v.x for v in verts), min(v.y for v in verts), min(v.z for v in verts)))
+        max_v = Vector((max(v.x for v in verts), max(v.y for v in verts), max(v.z for v in verts)))
+
+        size = max_v - min_v
+        if size.length == 0:
+            continue
+
+        mesh = bpy.data.meshes.new(f"BoxCollision_{obj.name}")
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=1.0)
+        bm.to_mesh(mesh)
+        bm.free()
+
+        # Scale cube to fit bounding box
+        for v in mesh.vertices:
+            v.co.x *= size.x
+            v.co.y *= size.y
+            v.co.z *= size.z
+
+        col_obj = create_collision_object(obj, mesh, f"UBX_{obj.name}", display_wire=False, parent=parent, context=context)
+        # Match transforms of duplicate if we created one, otherwise match source
+        # set parent
+        # Parent while keeping world placement
+        # Place at bbox center
+        if space == "WORLD":
+            col_obj.matrix_world = Matrix.Translation(center)
+        else:
+            # center is local space -> convert to world
+            col_obj.matrix_world = obj.matrix_world @ Matrix.Translation(center)
+
+        # Scale to bbox half extents (because cube is size=1)
+        col_obj.scale = (max(half.x, 1e-6), max(half.y, 1e-6), max(half.z, 1e-6))
+
+        # Parent while keeping world placement
+        if parent and source_obj:
+            mw = col_obj.matrix_world.copy()
+            col_obj.parent = source_obj
+            col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+            col_obj.matrix_world = mw
+
+def add_best_fit_sphere_collision_to_selected(context, use_evaluated_mesh=True, space="WORLD", parent=True):
+    selection = context.selected_objects
+    source_obj = get_relevant_source_objects(context)
+
+    for obj in selection:
+        if obj.type != "MESH":
+            continue
+
+        verts = get_object_vertices(obj, use_evaluated_mesh, space)
+        if not verts:
+            continue
+
+        center = sum(verts, Vector()) / len(verts)
+        radius = max((v - center).length for v in verts)/2
+
+        mesh = bpy.data.meshes.new(f"SphereCollision_{obj.name}")
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=8, radius=2.0)
+        bm.to_mesh(mesh)
+        bm.free()
+
+        # Scale sphere to fit bounding sphere
+        for v in mesh.vertices:
+            v.co *= radius
+
+        col_obj = create_collision_object(obj, mesh, f"USP_{obj.name}", display_wire=False, parent=parent, context=context)
+        # Place sphere
+        if space == "WORLD":
+            # center is world space
+            col_obj.matrix_world = Matrix.Translation(center)
+        else:
+            # center is local space; convert to world
+            col_obj.matrix_world = obj.matrix_world @ Matrix.Translation(center)
+
+        # Scale object to radius (do NOT scale vertices)
+        col_obj.scale = (radius, radius, radius)
+
+        # Parent while keeping world placement
+        if parent and source_obj:
+            mw = col_obj.matrix_world.copy()
+            col_obj.parent = source_obj
+            col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+            col_obj.matrix_world = mw
+
+def prepare_to_iterate_over_selection(context, self):
+    ct_props = context.scene.ct_properties
+    selection = context.selected_objects
+    if not selection:
+        self.report({'WARNING'}, "No objects selected.")
+        return {'CANCELLED'}
+
+    if ct_props.multiple_selection_behavior == "ONE_COLLISION":
+        c = [1]
+        multiple = False
+    elif ct_props.multiple_selection_behavior == "MULTIPLE_COLLISIONS":
+        c = []
+        multiple = True
+        for obj in selection:
+            c.append(obj)
+    return c, multiple, selection
+
+def prepare_duplicate_and_join(context, c, multiple, selection):
+        if multiple :
+            bpy.ops.object.select_all(action='DESELECT')
+            c.select_set(True)
+
+        active_obj = context.view_layer.objects.active
+        #getting name of active or first of the list
+        if active_obj and not multiple and active_obj in selection: 
+            og_name = bpy.path.clean_name(active_obj.name) 
+            source_obj = active_obj
+        else: 
+            og_name = bpy.path.clean_name(context.selected_objects[0].name)
+            source_obj = context.selected_objects[0]
+
+        bpy.ops.object.duplicate()
+        duplicate_objects = context.selected_objects
+        convert_to_mesh(duplicate_objects)
+        
+        bpy.ops.object.join()
+        
+        dup_and_join_obj = context.selected_objects[0]
+        bpy.context.view_layer.objects.active = dup_and_join_obj
+
+        return dup_and_join_obj, og_name, source_obj
+
+
+def add_box_collision_to_selected(context, self):
+    ct_props = context.scene.ct_properties
+    c, multiple, selection = prepare_to_iterate_over_selection(context, self)
+    for c in c:
+        dup_and_join_obj, og_name, source_obj = prepare_duplicate_and_join(context, c, multiple, selection)
+
+        verts = get_object_vertices(dup_and_join_obj, True)
+        if not verts:
+            continue
+
+        min_v = Vector((min(v.x for v in verts), min(v.y for v in verts), min(v.z for v in verts)))
+        max_v = Vector((max(v.x for v in verts), max(v.y for v in verts), max(v.z for v in verts)))
+
+        size = max_v - min_v
+        if size.length == 0:
+            continue
+
+        mesh = bpy.data.meshes.new(f"BoxCollision_{og_name}")
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=1.0)
+        bm.to_mesh(mesh)
+        bm.free()
+
+        # Scale cube to fit bounding box
+        for v in mesh.vertices:
+            v.co.x *= size.x
+            v.co.y *= size.y
+            v.co.z *= size.z
+
+        col_obj = create_collision_object(dup_and_join_obj, mesh, f"UBX_{og_name}", display_wire=False, parent=True, context=context)
+        copy_transforms_and_parent(source_obj, col_obj)
+        bpy.data.objects.remove(dup_and_join_obj, do_unlink=True)
+
+        
+    
+def copy_transforms_and_parent(target_obj, col_obj):
+        col_obj.matrix_world = Matrix.Translation(target_obj.location)
+        mw = col_obj.matrix_world.copy()
+        col_obj.parent = target_obj
+        col_obj.matrix_parent_inverse = target_obj.matrix_world.inverted_safe()
+        col_obj.matrix_world = mw
+
+        
+        
+def find_available_collision_name(name, prefix="UCX"):
+    num = 1
+    while True:
+        name_exists = any(o.name == f"{prefix}_{name}_{num:02}" for o in bpy.data.objects)
+        if not name_exists:
+            break
+        num += 1
+    joined_name = f"{prefix}_{name}_{num:02}"
+    return joined_name

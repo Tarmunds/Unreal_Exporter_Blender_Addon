@@ -75,6 +75,11 @@ class CT_Properties(PropertyGroup):
         ],
         default="ONE_COLLISION",
     )
+    try_to_fit_simple_collision: BoolProperty(
+        name="Try To Fit Simple Collision",
+        default=False,
+        description="Try to fit simple collision primitives (box, sphere, capsule) to the selected object before generating a convex hull. This can result in better performance and simpler collision meshes for objects that are well-suited to simple primitives.",
+    )
     
     ###Kdop properties###
     kdop_options: BoolProperty(
