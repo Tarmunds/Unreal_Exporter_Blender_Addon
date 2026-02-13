@@ -29,11 +29,13 @@ class CT_GenerateConvexCollisionToSelected(Operator):
     def execute(self, context):
         ct_props = context.scene.ct_properties
         selection = context.selected_objects
-        active_obj = context.view_layer.objects.active
         if not selection:
             self.report({'WARNING'}, "No objects selected.")
             return {'CANCELLED'}
-        
+
+
+        active_obj = context.view_layer.objects.active
+
         #getting name of active or first of the list
         if active_obj : 
             name = bpy.path.clean_name(active_obj.name) 
@@ -85,12 +87,12 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
 
     def execute(self, context):
         ct_props = context.scene.ct_properties
-
         selection = context.selected_objects
-
         if not selection or selection[0].type != "MESH":
             self.report({"ERROR"}, "Select at least one mesh object")
             return {"CANCELLED"}
+        
+
 
         active_obj = context.view_layer.objects.active
         if active_obj : 
@@ -188,7 +190,7 @@ class CT_SetCollisionVisibility(Operator):
     )
 
     def execute(self, context):
-        set_collision_objects_visibility(self.visibility)
+        set_collision_objects_visibility(self.visibility, context)
         return {"FINISHED"}
 
 

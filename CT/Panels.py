@@ -17,8 +17,8 @@ class CT_Panel(bpy.types.Panel):
         row.prop(ct_props, "wire_display", text="Wireframe Display", toggle=True)
         row.prop(ct_props, "selectable", text="Selectable", toggle=True)
         row = go_to_row(layout)
-        row.operator("ct.set_collision_visibility", text="Hide All Collisions", icon='HIDE_ON').visibility = False
-        row.operator("ct.set_collision_visibility", text="Show All Collisions", icon='HIDE_OFF').visibility = True
+        row.operator("ct.set_collision_visibility", text=f"Hide {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_ON').visibility = False
+        row.operator("ct.set_collision_visibility", text=f"Show {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_OFF').visibility = True
         layout.separator()
         row = go_to_row(layout)
         row.operator("ct.add_collision_to_selected", text="Add Cube Collision to Selected", icon='CUBE')
@@ -57,6 +57,12 @@ class CT_Panel(bpy.types.Panel):
         layout.separator()
         box = dropdown_menu(layout, ct_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
         if box:
+            row = go_to_row(box)
+            row.label(text="Field of visibility:")
+            row.prop(ct_props, "visibility_button_field", text="Visibility Button Field", expand=True)
+            row = go_to_row(box)
+            row.label(text="Multiple Selection Behavior:")
+            row.prop(ct_props, "multiple_selection_behavior", text="Multiple Selection Behavior", expand=True)
             row = go_to_row(box)
             row.prop(ct_props, "mat_color", text="Collision Color")
     

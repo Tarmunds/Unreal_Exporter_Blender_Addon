@@ -59,7 +59,23 @@ class CT_Properties(PropertyGroup):
         default=True,
         description="Parent generated convex hull to the source object",
     )
-
+    visibility_button_field: EnumProperty(
+        name="Visibility Button Field",
+        items=[
+            ("All_MESH", "All Mesh", "Toggle visibility for collision on all mesh objects"),
+            ("CURRENT_HIERARCHY", "Current Hierarchy", "Toggle visibility for collision on the current selected hierarchy"),
+        ],
+        default="All_MESH",
+    )
+    multiple_selection_behavior: EnumProperty(
+        name="Multiple Selection Behavior",
+        items=[
+            ("ONE_COLLISION", "One Collision", "Generate one collision mesh for the entire selection"),
+            ("MULTIPLE_COLLISIONS", "Multiple Collisions", "Generate separate collision meshes for each selected object"),
+        ],
+        default="ONE_COLLISION",
+    )
+    
     ###Kdop properties###
     kdop_options: BoolProperty(
         name="Show k-DOP Options",

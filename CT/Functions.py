@@ -286,10 +286,29 @@ def update_color_display(self, context):
     if mat:
         mat.diffuse_color = ct_props.mat_color
 
-def set_collision_objects_visibility(visible):
+def set_collision_objects_visibility(visible, context):
     collision_meshes = get_collision_objects()
-    for obj in collision_meshes:
-        obj.hide_viewport = not visible
+    ct_props = context.scene.ct_properties
+
+    if ct_props.visibility_button_field == "All_MESH":
+        for obj in collision_meshes:
+            obj.hide_viewport = not visible
+            
+    elif ct_props.visibility_button_field == "CURRENT_HIERARCHY":
+        processed_parents = set()
+        for obj in context.selected_objects:
+            #getting to top parent of the hierarchy
+            parent = obj
+            while parent.parent:
+                parent = parent.parent
+            #skip if already processed
+            if parent in processed_parents:
+                continue
+            processed_parents.add(parent)
+            for child in parent.children_recursive:
+                if child in collision_meshes:
+                    child.hide_viewport = not visible
+
 
 def update_selectable(self, context):
     ct_props = context.scene.ct_properties
