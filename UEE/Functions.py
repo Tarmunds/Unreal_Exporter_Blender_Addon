@@ -56,12 +56,19 @@ def export_object(main_obj, path, self):
         return False
     
 def convert_to_mesh(objects):
+    
+    if isinstance(objects, bpy.types.Object):
+        objects = [objects]
+
+    converted_objects = []
     for obj in objects:
         try:
             bpy.context.view_layer.objects.active = obj
             bpy.ops.object.convert(target='MESH')
+            converted_objects.append(obj)
         except Exception as e:
             print(f"Conversion to mesh failed for {obj.name}: {str(e)}")
+    return converted_objects
 
 def find_top_parent_in_one_hierarchy(hierarchy_objects):
     for obj in hierarchy_objects:

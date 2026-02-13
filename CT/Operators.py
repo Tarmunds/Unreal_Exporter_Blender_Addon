@@ -21,15 +21,20 @@ class CT_AddCollisionToSelected(Operator):
 class CT_GenerateConvexCollisionToSelected(Operator):
     bl_idname = "ct.generate_convex_collision_to_selected"
     bl_label = "Generate Convex Collision to Selected"
+    bl_options = {'REGISTER', 'UNDO'}
+
 
     def execute(self, context):
+        ct_props = context.scene.ct_properties
         selection = context.selected_objects
         active_obj = context.view_layer.objects.active
         if not selection:
             self.report({'WARNING'}, "No objects selected.")
             return {'CANCELLED'}
         
-        name = bpy.path.clean_name(active_obj.name)
+        #getting name of active or first of the list
+        if active_obj : name = bpy.path.clean_name(active_obj.name) 
+        else: name = context.selected_objects[0].name
 
         bpy.ops.object.duplicate()
         duplicate_objects = context.selected_objects
@@ -41,6 +46,18 @@ class CT_GenerateConvexCollisionToSelected(Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.convex_hull()
         bpy.ops.object.mode_set(mode='OBJECT')
+
+        data = joined_obj.data
+        face_count = len(data.polygons)
+        ratio = clamp(ct_props.target_face_count / face_count if face_count > 0 else 1.0)
+
+        dec = joined_obj.modifiers.new(name="Decimate", type='DECIMATE')
+        dec.decimate_type = 'COLLAPSE'
+        dec.ratio = ratio
+        dec.use_collapse_triangulate = True
+        if ct_props.bake_simplification :
+            duplicate_objects = convert_to_mesh(joined_obj)
+
         num = 1
         while True:
             name_exists = any(o.name == f"UCX_{name}_{num:02}" for o in bpy.data.objects)

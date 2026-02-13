@@ -21,6 +21,11 @@ class CT_Panel(bpy.types.Panel):
         row.operator("ct.add_collision_to_selected", text="Add Capsule Collision to Selected", icon='MESH_CYLINDER')
         row = go_to_row(layout, scale_y=2.0)
         row.operator("ct.generate_convex_collision_to_selected", text="Generate Convex Collision to Selected", icon='MOD_SOLIDIFY')
+
+        row = go_to_row(layout)
+        row.prop(context.scene.ct_properties, "target_face_count", slider=True)
+        row = go_to_row(layout)
+        row.prop(context.scene.ct_properties, "bake_simplification", toggle=True)
     
 _classes = (
     CT_Panel,
