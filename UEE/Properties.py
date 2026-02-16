@@ -39,6 +39,11 @@ class UEE_Properties(PropertyGroup):
         name="Saved Path",
         description="Select a saved path",
     )
+    export_collision: BoolProperty(
+        name="Export Collision",
+        description="Export Collision object linked to selected obejcts",
+        default=True,
+    )
     
     #panel bools
     path_options: BoolProperty(

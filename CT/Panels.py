@@ -13,13 +13,17 @@ class CT_Panel(bpy.types.Panel):
         ct_props = context.scene.ct_properties
 
         row = go_to_row(layout)
-        row.prop(ct_props, "color_display", text="Color Display", toggle=True)
-        row.prop(ct_props, "wire_display", text="Wireframe Display", toggle=True)
+        row.label(text="Collision Display Options:")
+        row = go_to_row(layout)
+        row.prop(ct_props, "color_display", text="Color", toggle=True)
+        row.prop(ct_props, "wire_display", text="Wireframe", toggle=True)
         row.prop(ct_props, "selectable", text="Selectable", toggle=True)
         row = go_to_row(layout)
         row.operator("ct.set_collision_visibility", text=f"Hide {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_ON').visibility = False
         row.operator("ct.set_collision_visibility", text=f"Show {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_OFF').visibility = True
-        layout.separator()
+        
+        row = go_to_row(layout)
+        row.label(text="Collision Operators:")
         row = go_to_row(layout)
         row.operator("ct.add_collision_to_selected", text="Add Cube Collision to Selected", icon='CUBE').volume_type = "BOX"
         row = go_to_row(layout)

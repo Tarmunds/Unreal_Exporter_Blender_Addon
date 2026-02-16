@@ -417,17 +417,18 @@ def add_best_fit_sphere_collision_to_selected(context, use_evaluated_mesh=True, 
             col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
             col_obj.matrix_world = mw
 
-def prepare_to_iterate_over_selection(context, self):
+def prepare_to_iterate_over_selection(context, self, force_multiple = False):
     ct_props = context.scene.ct_properties
     selection = context.selected_objects
     if not selection:
         self.report({'WARNING'}, "No objects selected.")
         return {'CANCELLED'}
 
-    if ct_props.multiple_selection_behavior == "ONE_COLLISION":
-        c = [1]
+    if ct_props.multiple_selection_behavior == "ONE_COLLISION" and not force_multiple:
+        first_mesh = selection[0]
+        c = [first_mesh]
         multiple = False
-    elif ct_props.multiple_selection_behavior == "MULTIPLE_COLLISIONS":
+    else :
         c = []
         multiple = True
         for obj in selection:
@@ -513,3 +514,43 @@ def find_available_collision_name(name, prefix="UCX"):
         num += 1
     joined_name = f"{prefix}_{name}_{num:02}"
     return joined_name
+
+def spawn_collision(context, self, operator):
+    ct_props = context.scene.ct_properties
+    c, multiple, selection = prepare_to_iterate_over_selection(context, self, force_multiple=True)
+    collision_set = []
+    for obj in c:
+        if check_if_collision(obj):
+            self.report({'WARNING'}, f"Collision objects selected. {obj.name} is skipped")
+            continue
+        operator()
+        box = context.view_layer.objects.active
+        box.name = find_available_collision_name(obj.name, "UBX")
+        copy_transforms_and_parent(obj, box)
+        set_display(box, context)
+        collision_set.append(box)
+    set_selection(collision_set)
+    
+   
+def spawn_box_collision(context, self):
+    spawn_collision(context, self, bpy.ops.mesh.primitive_cube_add) 
+
+def spawn_sphere_collision(context, self):
+    spawn_collision(context, self, simple_sphere)
+
+def spawn_capsule_collision(context, self):
+    spawn_collision(context, self, bpy.ops.mesh.primitive_cylinder_add)
+
+def set_selection(objects):
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in objects:
+        obj.select_set(True)
+        
+def simple_sphere():
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=8)
+    
+def check_if_collision(obj):
+    if (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_")):
+        return True
+    else :
+        return False

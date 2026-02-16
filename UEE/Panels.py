@@ -17,9 +17,6 @@ class UEE_Panel(bpy.types.Panel):
         row = go_to_row(layout)
         row.prop(uee_props, "export_path", text="Path")
 
-        # Proper spacing
-        layout.separator()
-
         box = dropdown_menu(layout, uee_props, "path_options", "Path Options", section_icon='FILE_FOLDER')
         if box:
             row = go_to_row(box)
@@ -42,10 +39,12 @@ class UEE_Panel(bpy.types.Panel):
             row.prop(uee_props, "include_transform", text="Include Location")
             row.prop(uee_props, "include_curve", text="Include Curve Geometry")
 
+        row = go_to_row(layout)
+        row.prop(uee_props, "export_collision", text=f"Collision Export {'Enable' if uee_props.export_collision else 'Disable'}", toggle=True, icon='MESH_CUBE' if uee_props.export_collision else 'CANCEL')
         # Export buttons
-        row = go_to_row(layout)
+        row = go_to_row(layout, scale_y=2)
         row.operator("export.selected_objects", text="Export Selected Objects", icon='STICKY_UVS_DISABLE')
-        row = go_to_row(layout)
+        row = go_to_row(layout, scale_y=2)
         row.operator("export.parented_objects", text="Export Each Hierarchy", icon='STICKY_UVS_LOC')
 
 

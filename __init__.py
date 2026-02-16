@@ -15,10 +15,10 @@ bl_info = {
 _SubModules = [
     "Utils.PanelUtils",
     "UEE.Functions",
+    "CT.Functions",
     "UEE.Properties",
     "UEE.Operators",
     "UEE.Panels",
-    "CT.Functions",
     "CT.Properties",
     "CT.Operators",
     "CT.Panels",

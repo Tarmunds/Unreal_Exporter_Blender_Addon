@@ -26,6 +26,15 @@ class CT_AddCollisionToSelected(Operator):
             self.report({"WARNING"}, "No objects selected.")
             return {"CANCELLED"}
         
+        match self.volume_type:
+            case "BOX":
+                spawn_box_collision(context, self)
+            case "SPHERE":
+                spawn_sphere_collision(context, self)
+            case "CAPSULE":
+                spawn_capsule_collision(context, self)
+        
+        """
         if ct_props.try_to_fit_simple_collision:
             match self.volume_type:
                 case "BOX":
@@ -42,8 +51,12 @@ class CT_AddCollisionToSelected(Operator):
                     add_sphere_collision_to_selected(context)
                 case "CAPSULE":
                     add_capsule_collision_to_selected(context)
+        """
+        
         return {"FINISHED"}
-    
+
+
+  
 class CT_GenerateConvexCollisionToSelected(Operator):
     bl_idname = "ct.generate_convex_collision_to_selected"
     bl_label = "Generate Convex Collision to Selected"

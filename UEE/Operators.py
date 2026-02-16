@@ -1,5 +1,6 @@
 import bpy
 from .Functions import *
+from ..CT.Functions import check_if_collision
 from bpy.types import Operator
 
 
@@ -23,6 +24,12 @@ class UEE_ExportSelectedObjects(Operator):
         for obj in selection:
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
+
+            #Support for on object export with collision
+            if obj.children and uee_props.export_collision:
+                for child in obj.children:
+                    if check_if_collision(child):
+                        child.select_set(False)
 
             original_location = obj.location.copy()
             if not include_transform:
