@@ -8,6 +8,7 @@ class CT_AddCollisionToSelected(Operator):
     bl_idname = "ct.add_collision_to_selected"
     bl_label = "Add Collision to Selected"
     bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Add a simple collision primitive to the selected object(s)"
 
     volume_type: bpy.props.EnumProperty(
         name="Collision Volume Type",
@@ -34,25 +35,6 @@ class CT_AddCollisionToSelected(Operator):
             case "CAPSULE":
                 spawn_capsule_collision(context, self)
         
-        """
-        if ct_props.try_to_fit_simple_collision:
-            match self.volume_type:
-                case "BOX":
-                    add_best_fit_box_collision_to_selected(context)
-                case "SPHERE":
-                    add_best_fit_sphere_collision_to_selected(context)
-                case "CAPSULE":
-                    pass
-        else:
-            match self.volume_type:
-                case "BOX":
-                    add_box_collision_to_selected(context, self)
-                case "SPHERE":
-                    add_sphere_collision_to_selected(context)
-                case "CAPSULE":
-                    add_capsule_collision_to_selected(context)
-        """
-        
         return {"FINISHED"}
 
 
@@ -61,8 +43,8 @@ class CT_GenerateConvexCollisionToSelected(Operator):
     bl_idname = "ct.generate_convex_collision_to_selected"
     bl_label = "Generate Convex Collision to Selected"
     bl_options = {'REGISTER', 'UNDO'}
-
-
+    bl_description = "Generate a convex collision mesh for the selected object(s) using the convex hull algorithm. Be aware of the performance gain of a k-dop collision over a convex hull and try to use the k-dop option when possible. For complex objects consider simplifying them before generating the collision mesh."
+    
     def execute(self, context):
         ct_props = context.scene.ct_properties
         selection = context.selected_objects
@@ -140,6 +122,7 @@ class CT_Regenerate_Capsule_Collision(Operator):
     bl_idname = "ct.regenerate_capsule_collision"
     bl_label = "Regenerate Capsule Collision"
     bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Regenerate capsule collision for the selected capsule collision object(s) using the current radius and height settings. This is useful to quickly update the collision mesh after changing the radius or height properties, without having to delete and re-add new capsule collisions."
 
     def execute(self, context):
         collision_objects = get_collision_objects()
@@ -174,7 +157,8 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
     bl_idname = "ct.kdop_generate_collision"
     bl_label = "Generate k-DOP Collision Hull"
     bl_options = {"REGISTER", "UNDO"}
-
+    bl_description = "Generate a k-DOP collision hull for the selected object(s). k-DOPs (Discrete Oriented Polytopes) are a type of bounding volume that can provide a good balance between accuracy and performance for collision detection. The 'Inside Epsilon' setting can be increased if you find that the generated hull is missing parts of the original mesh, or decreased if the hull is too bloated."
+    
     def execute(self, context):
         ct_props = context.scene.ct_properties
         selection = context.selected_objects
@@ -290,6 +274,7 @@ class CT_SetCollisionVisibility(Operator):
     bl_idname = "ct.set_collision_visibility"
     bl_label = "Set Collision Visibility"
     bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Toggle visibility of all collision objects in the viewport. This does not affect render visibility or export, it's just a helper to quickly hide/show all collision objects while working in the viewport without having to set up custom collections or manually hide them."
 
     visibility: bpy.props.BoolProperty(
         name="Visible",
@@ -305,6 +290,7 @@ class CT_DeleteCollision(Operator):
     bl_idname = "ct.delete_collision"
     bl_label = "Delete Collision"
     bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Delete all collision objects from the scene. If 'Selected Hierarchy' is enabled, it will only delete collision objects that are in the same hierarchy as the selected objects, which is useful to quickly clean up collision for specific assets without affecting the whole scene. Use with caution, especially if not using 'Selected Hierarchy', as this will permanently delete all collision objects in the scene without confirmation."
 
     selected_hierarchy: bpy.props.BoolProperty(
         name="Selected Hierarchy",

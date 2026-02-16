@@ -136,6 +136,9 @@ class CT_Properties(PropertyGroup):
         min=1e-9,
         max=1e-2,
         description="Tolerance for inside test",
+        unit="UNITLESS",
+        precision=6,
+        step=1e-6,
     )
     kdop_name_prefix: StringProperty(
         name="Name Prefix",
