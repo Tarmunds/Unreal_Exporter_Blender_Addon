@@ -85,7 +85,7 @@ class CT_Properties(PropertyGroup):
         name="Capsule Radius",
         default=0.5,
         min=0.01,
-        max=3.0,
+        soft_max=3.0,
         description="Radius of the capsule collision primitive",
         update=update_radius,
     )
@@ -93,7 +93,7 @@ class CT_Properties(PropertyGroup):
         name="Capsule Height",
         default=2.0,
         min=0.01,
-        max=6.0,
+        soft_max=6.0,
         description="Height of the capsule collision primitive (including the hemispherical ends)",
         update=update_height,
     )

@@ -143,40 +143,31 @@ class CT_Regenerate_Capsule_Collision(Operator):
 
     def execute(self, context):
         collision_objects = get_collision_objects()
-        active_obj = context.view_layer.objects.active
+        selection = context.selected_objects
         ct_props = context.scene.ct_properties
-        if not collision_objects:
-            self.report({'WARNING'}, "No collision objects detected.")
-            return {'CANCELLED'}
-        if not active_obj or active_obj not in collision_objects:
-            self.report({'WARNING'}, "Active object is not a collision object.")
-            return {'CANCELLED'}
-        if not active_obj.name.startswith("UCP_"):
-            self.report({'WARNING'}, "Active collision object is not a capsule (name must start with 'UCP_').")
-            return {'CANCELLED'}
-        
-        world_mx = active_obj.matrix_world.copy()
-        parent_obj = active_obj.parent
-        parent_inv = active_obj.matrix_parent_inverse.copy()
+        final_capsule = []
+        for obj in selection:
+            if obj not in collision_objects or not obj.name.startswith("UCP_"):
+                self.report({'WARNING'}, f"{obj.name} is not a collision object. Please select only capsule collision objects to regenerate.")
+                continue
+            
+            active_obj = obj
 
-        capsule, source_obj = spawn_capsule(
-            name="UCX_Capsule_01",
-            radius=ct_props.capsule_radius,
-            height=ct_props.capsule_height,
-            location=(0, 0, 0),
-            segments=16,
-            rings=8,
-            context=context
-        )
+            world_mx = active_obj.matrix_world.copy()
+            parent_obj = active_obj.parent
+            parent_inv = active_obj.matrix_parent_inverse.copy()
 
-        target_name = active_obj.name
-        bpy.data.objects.remove(active_obj, do_unlink=True)
-        capsule.parent = parent_obj
-        capsule.matrix_parent_inverse = parent_inv
-        capsule.matrix_world = world_mx
-        capsule.name = target_name
-        set_display(capsule, context)
-        
+            capsule = add_capsule_collision(context, self)
+
+            target_name = active_obj.name
+            bpy.data.objects.remove(active_obj, do_unlink=True)
+            capsule.parent = parent_obj
+            capsule.matrix_parent_inverse = parent_inv
+            capsule.matrix_world = world_mx
+            capsule.name = target_name
+            set_display(capsule, context)
+            final_capsule.append(capsule)
+        set_selection(final_capsule)        
         return {"FINISHED"}
 
 class CT_KDOP_generate_collision(bpy.types.Operator):

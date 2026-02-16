@@ -409,7 +409,7 @@ def find_available_collision_name(name, prefix="UCX"):
     joined_name = f"{prefix}_{name}_{num:02}"
     return joined_name
 
-def spawn_collision(context, self, operator):
+def spawn_collision(context, self, operator, prefix="UBX", pass_context=False):
     ct_props = context.scene.ct_properties
     c, multiple, selection = prepare_to_iterate_over_selection(context, self, force_multiple=True)
     collision_set = []
@@ -417,9 +417,12 @@ def spawn_collision(context, self, operator):
         if check_if_collision(obj):
             self.report({'WARNING'}, f"Collision objects selected. {obj.name} is skipped")
             continue
-        operator()
+        if context and self and pass_context:
+            operator(context=context, self=self)        
+        else :
+            operator()
         box = context.view_layer.objects.active
-        box.name = find_available_collision_name(obj.name, "UBX")
+        box.name = find_available_collision_name(obj.name, prefix)
         copy_transforms_and_parent(obj, box)
         set_display(box, context)
         collision_set.append(box)
@@ -427,18 +430,19 @@ def spawn_collision(context, self, operator):
     
    
 def spawn_box_collision(context, self):
-    spawn_collision(context, self, bpy.ops.mesh.primitive_cube_add) 
+    spawn_collision(context, self, bpy.ops.mesh.primitive_cube_add, prefix="UBX") 
 
 def spawn_sphere_collision(context, self):
-    spawn_collision(context, self, simple_sphere)
-
+    spawn_collision(context, self, simple_sphere, prefix="USP")
+    
 def spawn_capsule_collision(context, self):
-    ct_props = context.scene.ct_properties
-    capsule, source_obj = spawn_capsule(name="UCX_Capsule_01", radius=ct_props.capsule_radius, height=ct_props.capsule_height, location=(0, 0, 0), segments=16, rings=8, context=context)
-    capsule.name = find_available_collision_name(source_obj.name, "UCP")
-    copy_transforms_and_parent(source_obj, capsule)
-    set_display(capsule, context)
+    spawn_collision(context, self, add_capsule_collision, prefix="UCP", pass_context=True)
 
+def add_capsule_collision(context, self):
+    ct_props = context.scene.ct_properties
+    caps, aya = spawn_capsule(name="UCX_Capsule_01", radius=ct_props.capsule_radius, height=ct_props.capsule_height, location=(0, 0, 0), segments=16, rings=8, context=context)
+    context.view_layer.objects.active = caps
+    return caps
 def set_selection(objects):
     bpy.ops.object.select_all(action='DESELECT')
     for obj in objects:
