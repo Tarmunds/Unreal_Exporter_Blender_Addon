@@ -320,7 +320,33 @@ class CT_DeleteCollision(Operator):
         self.report({"INFO"}, f"Deleted {num_deleted} collision objects.")
         return {"FINISHED"}
 
+class CT_ConvertToUCX(Operator):
+    bl_idname = "ct.convert_to_ucx"
+    bl_label = "Convert to UCX Collision"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Convert the selected mesh object(s) to a convex collision mesh with a name starting with 'UCX'. This is useful for quickly creating collision meshes from existing geometry. The original mesh objects will be left in place, and the new collision meshes will be created as separate objects with the same transforms. Use with caution, as this can create very high-poly collision meshes if the original geometry is complex, which may not perform well in real-time applications."
 
+    def execute(self, context):
+        selection = context.selected_objects
+        col_objects = get_collision_objects()
+        if not selection:
+            self.report({"WARNING"}, "No objects selected.")
+            return {"CANCELLED"}
+
+        final_collision_objects = []
+        for obj in selection :            
+            parent_mesh = obj.parent if (obj.parent and obj.parent.type == "MESH" and obj.parent not in col_objects) else None
+            if not parent_mesh:
+                self.report({"WARNING"}, f"{obj.name} is not attached to any mesh parent, skipped.")
+                continue
+            if obj in col_objects:
+                self.report({"WARNING"}, f"{obj.name} is already a collision object, skipped.")
+                continue
+            base = parent_mesh.name
+            obj.name = find_available_collision_name(base, prefix="UCX")
+            set_display(obj, context)
+
+        return {"FINISHED"}
 
 _classes = (
     CT_AddCollisionToSelected,
@@ -329,6 +355,7 @@ _classes = (
     CT_SetCollisionVisibility,
     CT_DeleteCollision,
     CT_Regenerate_Capsule_Collision,
+    CT_ConvertToUCX,
 )
 
 def register():

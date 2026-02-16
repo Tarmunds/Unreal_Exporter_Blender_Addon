@@ -28,6 +28,7 @@ class CT_Panel(bpy.types.Panel):
         row.operator("ct.set_collision_visibility", text=f"Hide {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_ON').visibility = False
         row.operator("ct.set_collision_visibility", text=f"Show {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_OFF').visibility = True
         
+        layout.separator(type='LINE')
         row = go_to_row(layout)
 
         left, right = split_row(row, factor=0.5)
@@ -45,10 +46,13 @@ class CT_Panel(bpy.types.Panel):
         row = go_to_row(layout, scale_y=1.0)
         row.prop(ct_props, "capsule_radius", text="Capsule Radius", slider=True)
         row.prop(ct_props, "capsule_height", text="Capsule Height", slider=True)
+        
+        layout.separator(type='LINE')
 
         row = go_to_row(layout)
         left, right = split_row(row, factor=0.5)
         left.label(text="Collision Generators:")
+        right.operator("ct.convert_to_ucx", text="Convert to UCX")
         right.label(text="UCX")
 
 
@@ -80,7 +84,7 @@ class CT_Panel(bpy.types.Panel):
             row.prop(ct_props, "kdop_name_prefix", text="Prefix")
         
         row = go_to_row(layout)
-        row.label(text="Options :")
+        layout.separator(type='LINE')
         box = dropdown_menu(layout, ct_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
         if box:
             row = go_to_row(box)
