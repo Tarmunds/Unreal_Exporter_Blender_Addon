@@ -265,7 +265,7 @@ def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
 def get_collision_objects():
     return [
         obj for obj in bpy.data.objects
-        if obj.type == 'MESH' and (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_"))
+        if obj.type == 'MESH' and (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_") or obj.name.startswith("UCP_"))
     ]
 
 def update_collision_object_display(self, context):
@@ -320,102 +320,6 @@ def get_relevant_source_objects(context):
         return selection[0]
     else:
         return None
-
-def add_best_fit_box_collision_to_selected(context, use_evaluated_mesh=True, space="WORLD", parent=True):
-    selection = context.selected_objects
-    source_obj = get_relevant_source_objects(context)
-
-    for obj in selection:
-        if obj.type != "MESH":
-            continue
-
-        verts = get_object_vertices(obj, use_evaluated_mesh, space)
-        if not verts:
-            continue
-
-        min_v = Vector((min(v.x for v in verts), min(v.y for v in verts), min(v.z for v in verts)))
-        max_v = Vector((max(v.x for v in verts), max(v.y for v in verts), max(v.z for v in verts)))
-
-        size = max_v - min_v
-        if size.length == 0:
-            continue
-
-        mesh = bpy.data.meshes.new(f"BoxCollision_{obj.name}")
-        bm = bmesh.new()
-        bmesh.ops.create_cube(bm, size=1.0)
-        bm.to_mesh(mesh)
-        bm.free()
-
-        # Scale cube to fit bounding box
-        for v in mesh.vertices:
-            v.co.x *= size.x
-            v.co.y *= size.y
-            v.co.z *= size.z
-
-        col_obj = create_collision_object(obj, mesh, f"UBX_{obj.name}", display_wire=False, parent=parent, context=context)
-        # Match transforms of duplicate if we created one, otherwise match source
-        # set parent
-        # Parent while keeping world placement
-        # Place at bbox center
-        if space == "WORLD":
-            col_obj.matrix_world = Matrix.Translation(center)
-        else:
-            # center is local space -> convert to world
-            col_obj.matrix_world = obj.matrix_world @ Matrix.Translation(center)
-
-        # Scale to bbox half extents (because cube is size=1)
-        col_obj.scale = (max(half.x, 1e-6), max(half.y, 1e-6), max(half.z, 1e-6))
-
-        # Parent while keeping world placement
-        if parent and source_obj:
-            mw = col_obj.matrix_world.copy()
-            col_obj.parent = source_obj
-            col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
-            col_obj.matrix_world = mw
-
-def add_best_fit_sphere_collision_to_selected(context, use_evaluated_mesh=True, space="WORLD", parent=True):
-    selection = context.selected_objects
-    source_obj = get_relevant_source_objects(context)
-
-    for obj in selection:
-        if obj.type != "MESH":
-            continue
-
-        verts = get_object_vertices(obj, use_evaluated_mesh, space)
-        if not verts:
-            continue
-
-        center = sum(verts, Vector()) / len(verts)
-        radius = max((v - center).length for v in verts)/2
-
-        mesh = bpy.data.meshes.new(f"SphereCollision_{obj.name}")
-        bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=8, radius=2.0)
-        bm.to_mesh(mesh)
-        bm.free()
-
-        # Scale sphere to fit bounding sphere
-        for v in mesh.vertices:
-            v.co *= radius
-
-        col_obj = create_collision_object(obj, mesh, f"USP_{obj.name}", display_wire=False, parent=parent, context=context)
-        # Place sphere
-        if space == "WORLD":
-            # center is world space
-            col_obj.matrix_world = Matrix.Translation(center)
-        else:
-            # center is local space; convert to world
-            col_obj.matrix_world = obj.matrix_world @ Matrix.Translation(center)
-
-        # Scale object to radius (do NOT scale vertices)
-        col_obj.scale = (radius, radius, radius)
-
-        # Parent while keeping world placement
-        if parent and source_obj:
-            mw = col_obj.matrix_world.copy()
-            col_obj.parent = source_obj
-            col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
-            col_obj.matrix_world = mw
 
 def prepare_to_iterate_over_selection(context, self, force_multiple = False):
     ct_props = context.scene.ct_properties
@@ -539,7 +443,8 @@ def spawn_sphere_collision(context, self):
     spawn_collision(context, self, simple_sphere)
 
 def spawn_capsule_collision(context, self):
-    spawn_collision(context, self, bpy.ops.mesh.primitive_cylinder_add)
+    ct_props = context.scene.ct_properties
+    spawn_capsule(name="UCX_Capsule_01", radius=ct_props.capsule_radius, height=ct_props.capsule_height, location=(0, 0, 0), segments=16, rings=8, context=context)
 
 def set_selection(objects):
     bpy.ops.object.select_all(action='DESELECT')
@@ -550,7 +455,127 @@ def simple_sphere():
     bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=8)
     
 def check_if_collision(obj):
-    if (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_")):
+    if (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_") or obj.name.startswith("UCP_")) and obj.type == 'MESH':
         return True
     else :
         return False
+
+
+def spawn_capsule(name="Capsule", radius=0.25, height=1.0, location=(0, 0, 0), segments=32, rings=16, context=None):
+    """
+    Capsule total height = height
+    Cylinder height = max(height - 2*radius, 0)
+    """
+    loc = Vector(location)
+    cyl_h = max(height - 2.0 * radius, 0.0)
+
+    # Ensure Object Mode
+    if context and context.object and context.object.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+    source_obj = context.active_object if context.active_object in context.selected_objects else context.selected_objects[0]
+    bpy.ops.object.select_all(action='DESELECT')
+
+    created = []
+
+    # Cylinder (if any)
+    if cyl_h > 0.0:
+        bpy.ops.mesh.primitive_cylinder_add(
+            vertices=segments,
+            radius=radius,
+            depth=cyl_h,
+            location=loc
+        )
+        cyl = bpy.context.active_object
+        cyl.name = name + "_Cyl"
+        created.append(cyl)
+        pruned_ngon(cyl)
+
+        top_z = loc.z + cyl_h / 2.0
+        bot_z = loc.z - cyl_h / 2.0
+    else:
+        # Degenerates to a sphere if height <= 2*radius
+        top_z = bot_z = loc.z
+
+    # Top sphere
+    top_sphere =bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        radius=radius,
+        location=(loc.x, loc.y, top_z)
+    )
+    top = bpy.context.active_object
+    top.name = name + "_Top"
+    created.append(top)
+    delete_half(top, axis="Z", above=False)
+
+    # Bottom sphere
+    bot_sphere = bpy.ops.mesh.primitive_uv_sphere_add(
+        segments=segments,
+        ring_count=rings,
+        radius=radius,
+        location=(loc.x, loc.y, bot_z)
+    )
+    bot = bpy.context.active_object
+    bot.name = name + "_Bot"
+    created.append(bot)
+    delete_half(bot, axis="Z", above=True)
+
+    # Join into one object
+    for o in created:
+        o.select_set(True)
+    context.view_layer.objects.active = created[0]
+    bpy.ops.object.join()
+
+    capsule = context.active_object
+    capsule.name = name
+    bm = bmesh.new()
+    bm.from_mesh(capsule.data)
+
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+    bm.to_mesh(capsule.data)
+    bm.free()
+
+    capsule.name = find_available_collision_name(source_obj.name, "UCP")
+    copy_transforms_and_parent(source_obj, capsule)
+    set_display(capsule, context)
+    return capsule
+
+
+def delete_half(obj,axis="Z", above=True):
+
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    verts_to_delete = []
+
+    for v in bm.verts:
+        match axis:
+            case "X":
+                if v.co.x > 0 if above else v.co.x < 0:
+                    verts_to_delete.append(v)
+            case "Y":
+                if v.co.y > 0 if above else v.co.y < 0:
+                    verts_to_delete.append(v)
+            case "Z":
+                if v.co.z > 0 if above else v.co.z < 0:
+                    verts_to_delete.append(v)
+
+    # Delete them properly
+    bmesh.ops.delete(bm, geom=verts_to_delete, context='VERTS')
+            
+    bm.to_mesh(obj.data)
+    bm.free()
+
+def pruned_ngon(obj):
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    face_to_delete = []
+    for f in bm.faces:
+        if len(f.verts) > 4: 
+            face_to_delete.append(f)
+    bmesh.ops.delete(bm, geom=face_to_delete, context='FACES')
+            
+    bm.to_mesh(obj.data)
+    bm.free()

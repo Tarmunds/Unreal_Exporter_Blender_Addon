@@ -26,10 +26,13 @@ class UEE_ExportSelectedObjects(Operator):
             obj.select_set(True)
 
             #Support for on object export with collision
+            for child in obj.children:
+                print(child.name)
+
             if obj.children and uee_props.export_collision:
                 for child in obj.children:
                     if check_if_collision(child):
-                        child.select_set(False)
+                        child.select_set(True)
 
             original_location = obj.location.copy()
             if not include_transform:

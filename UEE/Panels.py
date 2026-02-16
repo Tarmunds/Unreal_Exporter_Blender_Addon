@@ -8,6 +8,11 @@ class UEE_Panel(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = 'Tarmunds Addons'
 
+    def draw_header_preset(self, context):
+        layout = self.layout
+        layout.label(icon='EXPORT')
+        #layout.prop(context.scene.uee_properties, "export_collision", text="Export Collision", toggle=True, icon='MESH_CUBE' if context.scene.uee_properties.export_collision else 'CANCEL')
+        layout.label(text="")
 
     def draw(self, context):
         layout = self.layout

@@ -81,6 +81,21 @@ class CT_Properties(PropertyGroup):
         description="Try to fit simple collision primitives (box, sphere, capsule) to the selected object before generating a convex hull. This can result in better performance and simpler collision meshes for objects that are well-suited to simple primitives.",
     )
     
+    capsule_radius: FloatProperty(
+        name="Capsule Radius",
+        default=0.5,
+        min=0.01,
+        max=10.0,
+        description="Radius of the capsule collision primitive",
+    )
+    capsule_height: FloatProperty(
+        name="Capsule Height",
+        default=2.0,
+        min=0.01,
+        max=20.0,
+        description="Height of the capsule collision primitive (including the hemispherical ends)",
+    )
+
     ###Kdop properties###
     kdop_options: BoolProperty(
         name="Show k-DOP Options",
