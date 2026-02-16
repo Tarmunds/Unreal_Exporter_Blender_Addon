@@ -268,17 +268,7 @@ def get_collision_objects():
         if obj.type == 'MESH' and (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_") or obj.name.startswith("UCP_"))
     ]
 
-def update_collision_object_display(self, context):
-    collision_meshes = get_collision_objects()
-    for obj in collision_meshes:
-        set_display(obj, context)
 
-def update_color_display(self, context):
-    ct_props = context.scene.ct_properties
-    mat_name = "M_CT_Collision_Mat"
-    mat = bpy.data.materials.get(mat_name)
-    if mat:
-        mat.diffuse_color = ct_props.mat_color
 
 def set_collision_objects_visibility(visible, context):
     collision_meshes = get_collision_objects()
@@ -444,7 +434,10 @@ def spawn_sphere_collision(context, self):
 
 def spawn_capsule_collision(context, self):
     ct_props = context.scene.ct_properties
-    spawn_capsule(name="UCX_Capsule_01", radius=ct_props.capsule_radius, height=ct_props.capsule_height, location=(0, 0, 0), segments=16, rings=8, context=context)
+    capsule, source_obj = spawn_capsule(name="UCX_Capsule_01", radius=ct_props.capsule_radius, height=ct_props.capsule_height, location=(0, 0, 0), segments=16, rings=8, context=context)
+    capsule.name = find_available_collision_name(source_obj.name, "UCP")
+    copy_transforms_and_parent(source_obj, capsule)
+    set_display(capsule, context)
 
 def set_selection(objects):
     bpy.ops.object.select_all(action='DESELECT')
@@ -536,10 +529,7 @@ def spawn_capsule(name="Capsule", radius=0.25, height=1.0, location=(0, 0, 0), s
     bm.to_mesh(capsule.data)
     bm.free()
 
-    capsule.name = find_available_collision_name(source_obj.name, "UCP")
-    copy_transforms_and_parent(source_obj, capsule)
-    set_display(capsule, context)
-    return capsule
+    return capsule, source_obj
 
 
 def delete_half(obj,axis="Z", above=True):
@@ -579,3 +569,27 @@ def pruned_ngon(obj):
             
     bm.to_mesh(obj.data)
     bm.free()
+
+# Update functions for properties
+
+def update_collision_object_display(self, context):
+    collision_meshes = get_collision_objects()
+    for obj in collision_meshes:
+        set_display(obj, context)
+
+def update_color_display(self, context):
+    ct_props = context.scene.ct_properties
+    mat_name = "M_CT_Collision_Mat"
+    mat = bpy.data.materials.get(mat_name)
+    if mat:
+        mat.diffuse_color = ct_props.mat_color    
+        
+def update_radius(self, context):
+    ct_props = context.scene.ct_properties
+    if ct_props.capsule_radius > ct_props.capsule_height / 2.0:
+        ct_props.capsule_height = ct_props.capsule_radius * 2.0
+        
+def update_height(self, context):
+    ct_props = context.scene.ct_properties
+    if ct_props.capsule_height < ct_props.capsule_radius * 2.0:
+        ct_props.capsule_radius = ct_props.capsule_height / 2.0

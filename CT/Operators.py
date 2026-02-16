@@ -136,6 +136,49 @@ class CT_GenerateConvexCollisionToSelected(Operator):
             obj.select_set(True)
         return {'FINISHED'}
 
+class CT_Regenerate_Capsule_Collision(Operator):
+    bl_idname = "ct.regenerate_capsule_collision"
+    bl_label = "Regenerate Capsule Collision"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        collision_objects = get_collision_objects()
+        active_obj = context.view_layer.objects.active
+        ct_props = context.scene.ct_properties
+        if not collision_objects:
+            self.report({'WARNING'}, "No collision objects detected.")
+            return {'CANCELLED'}
+        if not active_obj or active_obj not in collision_objects:
+            self.report({'WARNING'}, "Active object is not a collision object.")
+            return {'CANCELLED'}
+        if not active_obj.name.startswith("UCP_"):
+            self.report({'WARNING'}, "Active collision object is not a capsule (name must start with 'UCP_').")
+            return {'CANCELLED'}
+        
+        world_mx = active_obj.matrix_world.copy()
+        parent_obj = active_obj.parent
+        parent_inv = active_obj.matrix_parent_inverse.copy()
+
+        capsule, source_obj = spawn_capsule(
+            name="UCX_Capsule_01",
+            radius=ct_props.capsule_radius,
+            height=ct_props.capsule_height,
+            location=(0, 0, 0),
+            segments=16,
+            rings=8,
+            context=context
+        )
+
+        target_name = active_obj.name
+        bpy.data.objects.remove(active_obj, do_unlink=True)
+        capsule.parent = parent_obj
+        capsule.matrix_parent_inverse = parent_inv
+        capsule.matrix_world = world_mx
+        capsule.name = target_name
+        set_display(capsule, context)
+        
+        return {"FINISHED"}
+
 class CT_KDOP_generate_collision(bpy.types.Operator):
     bl_idname = "ct.kdop_generate_collision"
     bl_label = "Generate k-DOP Collision Hull"
@@ -308,6 +351,7 @@ _classes = (
     CT_KDOP_generate_collision,
     CT_SetCollisionVisibility,
     CT_DeleteCollision,
+    CT_Regenerate_Capsule_Collision,
 )
 
 def register():

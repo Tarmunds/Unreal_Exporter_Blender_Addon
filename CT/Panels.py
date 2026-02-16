@@ -39,7 +39,9 @@ class CT_Panel(bpy.types.Panel):
         row.operator("ct.add_collision_to_selected", text="Add Cube Collision", icon='CUBE').volume_type = "BOX"
         row.operator("ct.add_collision_to_selected", text="Add Sphere Collision", icon='SPHERE').volume_type = "SPHERE"
         row = go_to_row(layout)
-        row.operator("ct.add_collision_to_selected", text="Add Capsule Collision", icon='MESH_CYLINDER').volume_type = "CAPSULE"
+        left, right = split_row(row, factor=0.7, right_align=False)
+        left.operator("ct.add_collision_to_selected", text="Add Capsule Collision", icon='MESH_CYLINDER').volume_type = "CAPSULE"
+        right.operator("ct.regenerate_capsule_collision", text="Regenerate", icon='CON_FOLLOWPATH')
         row = go_to_row(layout, scale_y=1.0)
         row.prop(ct_props, "capsule_radius", text="Capsule Radius", slider=True)
         row.prop(ct_props, "capsule_height", text="Capsule Height", slider=True)

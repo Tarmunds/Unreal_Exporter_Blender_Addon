@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import (BoolProperty, FloatVectorProperty, EnumProperty, PointerProperty, IntProperty, StringProperty, FloatProperty)
 from bpy.types import PropertyGroup
-from .Functions import update_collision_object_display, update_color_display, update_selectable
+from .Functions import update_collision_object_display, update_color_display, update_selectable, update_radius, update_height
 
 class CT_Properties(PropertyGroup):
     target_face_count: IntProperty(
@@ -85,15 +85,17 @@ class CT_Properties(PropertyGroup):
         name="Capsule Radius",
         default=0.5,
         min=0.01,
-        max=10.0,
+        max=3.0,
         description="Radius of the capsule collision primitive",
+        update=update_radius,
     )
     capsule_height: FloatProperty(
         name="Capsule Height",
         default=2.0,
         min=0.01,
-        max=20.0,
+        max=6.0,
         description="Height of the capsule collision primitive (including the hemispherical ends)",
+        update=update_height,
     )
 
     ###Kdop properties###

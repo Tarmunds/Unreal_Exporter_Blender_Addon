@@ -23,9 +23,10 @@ def dropdown_menu(layout, data, prop_name: str, text: str, section_icon=None, fo
         r.label(icon=section_icon)
     return box if expanded else None
 
-def split_row(row, factor=0.5, align=False):
+def split_row(row, factor=0.5, align=False, right_align=True):
     split = row.split(factor=factor)
     left = split.row(align=align)
     right = split.row(align=align)
-    right.alignment = 'RIGHT'
+    if right_align:
+        right.alignment = 'RIGHT'
     return left, right
