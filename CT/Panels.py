@@ -114,10 +114,10 @@ class CT_Panel(bpy.types.Panel):
             row.operator("ct.delete_collision", text="Delete All Collision", icon='TRASH').selected_hierarchy = False
             row.operator("ct.delete_collision", text="Delete Hierarchy Collision", icon='TRASH').selected_hierarchy = True
             row = go_to_row(box)
-            op1 = row.operator("ct.delete_collision", text="Delete Socket Objects", icon='TRASH')
+            op1 = row.operator("ct.delete_collision", text="Delete All Sockets", icon='TRASH')
             op1.socket_objects = True
             op1.selected_hierarchy = False
-            op = row.operator("ct.delete_collision",text="Delete Socket Objects in Hierarchy",icon='TRASH')
+            op = row.operator("ct.delete_collision",text="Delete Sockets Hierarchy",icon='TRASH')
             op.socket_objects = True
             op.selected_hierarchy = True
             row = go_to_row(box)
