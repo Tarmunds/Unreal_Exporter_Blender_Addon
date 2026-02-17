@@ -16,6 +16,7 @@ class UEE_ExportSelectedObjects(Operator):
 
         valid_path, export_dir = check_path_valid(path, self)
         if not valid_path:
+            self.report({'ERROR'}, "Invalid export path. Please set a valid path before exporting.")
             return {'CANCELLED'}
         
         collision_selectable_state = set_collision_objects_selectable(context)
@@ -28,7 +29,6 @@ class UEE_ExportSelectedObjects(Operator):
 
             collision_affected = []
             prepare_collision_to_export(obj, context, collision_affected, check_if_collision)
-
             socket_affected = []
             prepare_sockets_to_export(obj, context, socket_affected)
 
@@ -67,6 +67,7 @@ class UEE_ExportParentedObjects(Operator):
 
         valid_path, export_dir = check_path_valid(path, self)
         if not valid_path:
+            self.report({'ERROR'}, "Invalid export path. Please set a valid path before exporting.")
             return {'CANCELLED'}
         
         context.mode_set(mode='OBJECT')  # Ensure we're in Object Mode for selection and export operations
