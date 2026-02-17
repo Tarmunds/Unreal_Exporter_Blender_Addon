@@ -1,6 +1,6 @@
 import bpy
 from .Functions import *
-from ..CT.Functions import check_if_collision, set_display
+from ..CT.Functions import check_if_collision, set_display, get_collision_objects, find_available_collision_name
 from bpy.types import Operator
 
 
@@ -108,21 +108,43 @@ class UEE_ExportParentedObjects(Operator):
             else:
                 # duplicate hierarchy to avoid breaking original
                 bpy.ops.object.duplicate()
-                ###dup_objects = [o for o in context.selected_objects]
                 duplicate_objects = context.selected_objects
                 duplicate_parent = find_top_parent_in_one_hierarchy(duplicate_objects)
+                collision_collection = get_collision_objects()
+
+                #get all non mesh duplcated object
+                collision_duplicate = []
+                socket_duplicate = []
+                for obj in duplicate_parent.children_recursive:
+                    if obj.type == 'MESH' and obj in collision_collection:
+                        collision_duplicate.append(obj)
+                        duplicate_objects.remove(obj)
+                        obj.select_set(False)
+                    if obj.type == 'EMPTY' and obj.name.startswith("SOCKET_"):
+                        socket_duplicate.append(obj)
+                        duplicate_objects.remove(obj)
+                        obj.select_set(False)
+
 
                 # make all converted to mesh
                 convert_to_mesh(duplicate_objects)
-
                 # join them all into one
                 bpy.context.view_layer.objects.active = duplicate_parent
                 bpy.ops.object.join()
                 joined_obj = bpy.context.view_layer.objects.active
-
                 # export only the joined mesh
                 bpy.ops.object.select_all(action='DESELECT')
                 joined_obj.select_set(True)
+                for obj in collision_duplicate:
+                    prefix = obj.name[:3]
+                    obj.name = find_available_collision_name(joined_obj.name, prefix)
+                    obj.parent = joined_obj
+                    obj.select_set(True)
+
+                for obj in socket_duplicate:
+                    obj.name = find_available_collision_name(joined_obj.name, "SOCKET")
+                    obj.parent = joined_obj
+                    obj.select_set(True)
 
                 c = export_object(parent, export_dir, self)
                 if not include_transform:
@@ -130,7 +152,6 @@ class UEE_ExportParentedObjects(Operator):
                 bpy.ops.object.delete()
                 if not c:
                     return {'CANCELLED'}
-                
             for collision in collision_affected:
                 set_display(collision, context)
             if socket_affected:
