@@ -248,6 +248,16 @@ def set_display(obj, context):
     
     obj.hide_select = not ct_props.selectable
 
+def set_display_socket(socket, context):
+    ct_props = context.scene.ct_properties
+    d_name = ct_props.socket_name
+    d_front = ct_props.socket_in_front
+    selectable = ct_props.selectable_socket
+    
+    socket.show_name = d_name
+    socket.show_in_front = d_front
+    socket.hide_select = not selectable
+
 
 def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
     mat_name = "M_CT_Collision_Mat"
@@ -597,3 +607,9 @@ def update_height(self, context):
     ct_props = context.scene.ct_properties
     if ct_props.capsule_height < ct_props.capsule_radius * 2.0:
         ct_props.capsule_radius = ct_props.capsule_height / 2.0
+
+def update_socket_display(self, context):
+    ct_props = context.scene.ct_properties
+    for obj in bpy.data.objects:
+        if obj.name.startswith("SOCKET_") and obj.type == 'EMPTY':
+            set_display_socket(obj, context)

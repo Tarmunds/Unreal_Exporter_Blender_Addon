@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import (BoolProperty, FloatVectorProperty, EnumProperty, PointerProperty, IntProperty, StringProperty, FloatProperty)
 from bpy.types import PropertyGroup
-from .Functions import update_collision_object_display, update_color_display, update_selectable, update_radius, update_height
+from .Functions import update_collision_object_display, update_color_display, update_selectable, update_radius, update_height, update_socket_display
 
 class CT_Properties(PropertyGroup):
     target_face_count: IntProperty(
@@ -146,6 +146,36 @@ class CT_Properties(PropertyGroup):
         name="Parent To Source",
         default=True,
         description="Parent collision object to the source object",
+    )
+
+    #socket visibility
+    socket_name: BoolProperty(
+        name="Socket Name Display",
+        default=True,
+        description="Display socket names in the viewport",
+        update=update_socket_display,
+    )
+    socket_in_front: BoolProperty(
+        name="Socket In Front",
+        default=True,
+        description="Display sockets in front of other objects in the viewport",
+        update=update_socket_display,
+    )
+    selectable_socket: BoolProperty(
+        name="Selectable Sockets",
+        default=True,
+        description="Allow selection of sockets in the viewport",
+        update=update_socket_display,
+    )
+    socket_at_cursor: BoolProperty(
+        name="Socket at Cursor",
+        default=False,
+        description="When enabled, new sockets will be created at the 3D cursor location instead of the origin of the parent object",
+    )
+    socket_options: BoolProperty(
+        name="Show Socket Options",
+        default=False,
+        description="Show additional options for socket display",
     )
 
     

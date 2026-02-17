@@ -18,12 +18,13 @@ class CT_Panel(bpy.types.Panel):
         layout = self.layout
         ct_props = context.scene.ct_properties
 
+        #--- Collision Display Options ---
         row = go_to_row(layout)
         row.label(text="Collision Display Options:")
         row = go_to_row(layout)
-        row.prop(ct_props, "color_display", text="Color", toggle=True)
-        row.prop(ct_props, "wire_display", text="Wireframe", toggle=True)
-        row.prop(ct_props, "selectable", text="Selectable", toggle=True)
+        row.prop(ct_props, "color_display", text="Color",icon='COLOR')
+        row.prop(ct_props, "wire_display", text="Wireframe", icon='MOD_WIREFRAME')
+        row.prop(ct_props, "selectable", text="Selectable", icon='RESTRICT_SELECT_OFF' if ct_props.selectable else 'RESTRICT_SELECT_ON')
         row = go_to_row(layout)
         row.operator("ct.set_collision_visibility", text=f"Hide {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_ON').visibility = False
         row.operator("ct.set_collision_visibility", text=f"Show {'All' if ct_props.visibility_button_field == 'All_MESH' else 'Hierarchy'} Collisions", icon='HIDE_OFF').visibility = True
@@ -31,6 +32,7 @@ class CT_Panel(bpy.types.Panel):
         layout.separator(type='LINE')
         row = go_to_row(layout)
 
+        #--- Collision Operator ---
         left, right = split_row(row, factor=0.5)
         left.label(text="Simple Collision Operators:")
 
@@ -49,6 +51,7 @@ class CT_Panel(bpy.types.Panel):
         
         layout.separator(type='LINE')
 
+        #--- Collision Generator Operators ---
         row = go_to_row(layout)
         left, right = split_row(row, factor=0.5)
         left.label(text="Collision Generators:")
@@ -83,6 +86,20 @@ class CT_Panel(bpy.types.Panel):
             row = go_to_row(box)
             row.prop(ct_props, "kdop_name_prefix", text="Prefix")
         
+        #--- Socket Options ---
+        layout.separator(type='LINE')
+        box = dropdown_menu(layout, ct_props, "socket_options", "Socket Options", section_icon='EMPTY_DATA')
+        if box:
+            row = go_to_row(box)
+            row.prop(ct_props, "socket_name", text="Socket Name", toggle=True, icon='SORTALPHA')
+            row.prop(ct_props, "socket_in_front", text="In Front", toggle=True, icon='RADIOBUT_OFF' if not ct_props.socket_in_front else 'RADIOBUT_ON')
+            row.prop(ct_props, "selectable_socket", text="Selectable", toggle=True, icon='RESTRICT_SELECT_OFF' if ct_props.selectable_socket else 'RESTRICT_SELECT_ON')
+            row = go_to_row(box, scale_y=1.5)
+            right,left =split_row(row, factor=0.65, right_align=False)
+            right.operator("ct.add_socket_to_selected", text="Add Socket", icon='ADD')
+            left.prop(ct_props, "socket_at_cursor", text="At Cursor", toggle=True, icon='CURSOR')
+
+        #--- Advanced Options ---
         row = go_to_row(layout)
         layout.separator(type='LINE')
         box = dropdown_menu(layout, ct_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
@@ -96,6 +113,13 @@ class CT_Panel(bpy.types.Panel):
             row = go_to_row(box)
             row.operator("ct.delete_collision", text="Delete All Collision", icon='TRASH').selected_hierarchy = False
             row.operator("ct.delete_collision", text="Delete Hierarchy Collision", icon='TRASH').selected_hierarchy = True
+            row = go_to_row(box)
+            op1 = row.operator("ct.delete_collision", text="Delete Socket Objects", icon='TRASH')
+            op1.socket_objects = True
+            op1.selected_hierarchy = False
+            op = row.operator("ct.delete_collision",text="Delete Socket Objects in Hierarchy",icon='TRASH')
+            op.socket_objects = True
+            op.selected_hierarchy = True
             row = go_to_row(box)
             row.prop(ct_props, "mat_color", text="Collision Color")
     

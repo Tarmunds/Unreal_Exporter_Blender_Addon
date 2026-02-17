@@ -297,27 +297,36 @@ class CT_DeleteCollision(Operator):
         default=False,
         description="Delete collision objects in the selected hierarchy instead of the whole scene",
     )
+    socket_objects: bpy.props.BoolProperty(
+        name="Delete Socket Objects",
+        default=False,
+        description="Delete sockets object instead of collision objects. This is useful to quickly clean up socket empties for specific assets without affecting the whole scene. Use with caution, as this will permanently delete all socket objects in the scene without confirmation.",
+    )
 
     def execute(self, context):
-        collision_objects = get_collision_objects()
-        if not collision_objects:
-            self.report({"WARNING"}, "No collision objects detected.")
+        if not self.socket_objects:
+            deletable_list = get_collision_objects()
+        else:
+            deletable_list = [o for o in bpy.data.objects if o.name.startswith("SOCKET_") and o.type == 'EMPTY']
+        
+        if not deletable_list:
+            self.report({"WARNING"}, f"No {'socket' if self.socket_objects else 'collision'} objects detected.")
             return {"CANCELLED"}
         
         num_deleted = 0
         if not self.selected_hierarchy :
-            for obj in collision_objects:
+            for obj in deletable_list:
                 bpy.data.objects.remove(obj, do_unlink=True)
                 num_deleted += 1
         else :
             obj = get_top_parents(context.selected_objects)
             for obj in obj:
                 for child in obj.children_recursive:
-                    if child in collision_objects:
+                    if child in deletable_list:
                         bpy.data.objects.remove(child, do_unlink=True)
                         num_deleted += 1
 
-        self.report({"INFO"}, f"Deleted {num_deleted} collision objects.")
+        self.report({"INFO"}, f"Deleted {num_deleted} {'socket' if self.socket_objects else 'collision'} objects.")
         return {"FINISHED"}
 
 class CT_ConvertToUCX(Operator):
@@ -348,8 +357,47 @@ class CT_ConvertToUCX(Operator):
 
         return {"FINISHED"}
 
+class CT_AddSocketToSelected(Operator):
+    bl_idname = "ct.add_socket_to_selected"
+    bl_label = "Add Socket to Selected"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        ct_props = context.scene.ct_properties
+        selection = context.selected_objects
+        if not selection:
+            self.report({"WARNING"}, "No objects selected.")
+            return {"CANCELLED"}
+
+        target = context.active_object if context.active_object in selection else selection[0]
+        if target.type != "MESH" or target in get_collision_objects() or target.name.startswith("SOCKET_"):
+            self.report({"WARNING"}, "Active object must be a mesh and not a collision or socket object.")
+            return {"CANCELLED"}
+
+        socket_name = find_available_collision_name(target.name, prefix="SOCKET_")
+
+        if ct_props.socket_at_cursor:
+            desired_world_pos = context.scene.cursor.location.copy()
+        else:
+            desired_world_pos = target.matrix_world.translation.copy()
+
+        bpy.ops.object.empty_add(type='PLAIN_AXES', location=desired_world_pos)
+        socket = context.view_layer.objects.active
+        socket.name = socket_name
+
+        socket.parent = target
+        socket.matrix_parent_inverse = target.matrix_world.inverted_safe()
+
+        socket.rotation_euler = (0.0, 0.0, 0.0)
+        socket.scale = (1.0, 1.0, 1.0)
+
+        set_display_socket(socket, context)
+        return {"FINISHED"}
+
+
 _classes = (
     CT_AddCollisionToSelected,
+    CT_AddSocketToSelected,
     CT_GenerateConvexCollisionToSelected,
     CT_KDOP_generate_collision,
     CT_SetCollisionVisibility,
