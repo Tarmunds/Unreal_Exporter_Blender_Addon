@@ -46,6 +46,7 @@ class UEE_Panel(bpy.types.Panel):
 
         row = go_to_row(layout)
         row.prop(uee_props, "export_collision", text=f"Collision Export {'Enable' if uee_props.export_collision else 'Disable'}", toggle=True, icon='MESH_CUBE' if uee_props.export_collision else 'CANCEL')
+        row.prop(uee_props, "export_sockets", text=f"Socket Export {'Enable' if uee_props.export_sockets else 'Disable'}", toggle=True, icon='EMPTY_DATA' if uee_props.export_sockets else 'CANCEL')
         # Export buttons
         row = go_to_row(layout, scale_y=2)
         row.operator("export.selected_objects", text="Export Selected Objects", icon='STICKY_UVS_DISABLE')

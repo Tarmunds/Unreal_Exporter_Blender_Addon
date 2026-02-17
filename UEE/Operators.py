@@ -1,6 +1,6 @@
 import bpy
 from .Functions import *
-from ..CT.Functions import check_if_collision
+from ..CT.Functions import check_if_collision, set_display
 from bpy.types import Operator
 
 
@@ -19,20 +19,18 @@ class UEE_ExportSelectedObjects(Operator):
             return {'CANCELLED'}
         
         collision_selectable_state = set_collision_objects_selectable(context)
+        socket_selectable_state = set_socket_objects_selectable(context)
 
         selection = context.selected_objects
         for obj in selection:
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
 
-            #Support for on object export with collision
-            for child in obj.children:
-                print(child.name)
+            collision_affected = []
+            prepare_collision_to_export(obj, context, collision_affected, check_if_collision)
 
-            if obj.children and uee_props.export_collision:
-                for child in obj.children:
-                    if check_if_collision(child):
-                        child.select_set(True)
+            socket_affected = []
+            prepare_sockets_to_export(obj, context, socket_affected)
 
             original_location = obj.location.copy()
             if not include_transform:
@@ -44,7 +42,15 @@ class UEE_ExportSelectedObjects(Operator):
             if not c:
                 return {'CANCELLED'}
             
+            for collision in collision_affected:
+                set_display(collision, context)
+            
+            if socket_affected:
+                for socket in socket_affected:
+                    socket.scale *= 100
+            
         reset_collision_objects_selectable(context, collision_selectable_state)
+        reset_socket_objects_selectable(context, socket_selectable_state)
         restore_selection(selection)
         return {'FINISHED'}
 
@@ -64,6 +70,7 @@ class UEE_ExportParentedObjects(Operator):
             return {'CANCELLED'}
         
         collision_selectable_state = set_collision_objects_selectable(context)
+        socket_selectable_state = set_socket_objects_selectable(context)
 
         processed_parents = set()
         selection = context.selected_objects
@@ -87,6 +94,11 @@ class UEE_ExportParentedObjects(Operator):
             for child in parent.children_recursive:
                 child.select_set(True)
 
+            collision_affected = []
+            prepare_collision_to_export(parent, context, collision_affected, check_if_collision, all_children=True)
+            socket_affected = []
+            prepare_sockets_to_export(parent, context, socket_affected, all_children=True)
+            
             if not join_meshes:
                 c = export_object(parent, export_dir, self)
                 if not include_transform:
@@ -118,8 +130,15 @@ class UEE_ExportParentedObjects(Operator):
                 bpy.ops.object.delete()
                 if not c:
                     return {'CANCELLED'}
+                
+            for collision in collision_affected:
+                set_display(collision, context)
+            if socket_affected:
+                for socket in socket_affected:
+                    socket.scale *= 100
 
         reset_collision_objects_selectable(context, collision_selectable_state)
+        reset_socket_objects_selectable(context, socket_selectable_state)
         restore_selection(selection)
         return {'FINISHED'}
 

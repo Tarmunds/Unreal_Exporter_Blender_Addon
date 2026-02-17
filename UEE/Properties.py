@@ -44,6 +44,11 @@ class UEE_Properties(PropertyGroup):
         description="Export Collision object linked to selected obejcts",
         default=True,
     )
+    export_sockets: BoolProperty(
+        name="Export Sockets",
+        description="Export Socket objects linked to selected obejcts",
+        default=True,
+    )
     
     #panel bools
     path_options: BoolProperty(

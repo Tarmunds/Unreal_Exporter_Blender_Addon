@@ -19,18 +19,19 @@ def check_path_valid(path, self):
 
 def export_object(main_obj, path, self):
     uee_props= bpy.context.scene.uee_properties
-
+    export_socket = uee_props.export_sockets
     name = bpy.path.clean_name(main_obj.name)
     file_path = os.path.join(path, f"{name}.{uee_props.export_format.lower()}")
 
+    
     if uee_props.include_curve :
-        type_export = 'MESH', 'ARMATURE', 'OTHER' 
+        type_export = 'MESH', 'ARMATURE', 'OTHER', 'EMPTY' if export_socket else 'MESH', 'ARMATURE', 'OTHER'
     else: 
-        type_export = 'MESH', 'ARMATURE'
+        type_export = 'MESH', 'ARMATURE', 'EMPTY' if export_socket else 'MESH', 'ARMATURE'
         if main_obj.type == 'CURVE': 
             self.report({'WARNING'}, f"Skipping curve object: {main_obj.name} (curve export is disabled)")
             return False
-    
+
     try:
         if uee_props.export_format == "FBX":
             bpy.ops.export_scene.fbx(
@@ -90,7 +91,37 @@ def set_collision_objects_selectable(context):
         return False
     else:
         return True
+
+def set_socket_objects_selectable(context):
+    ct_props = context.scene.ct_properties
+    if not ct_props.selectable_socket :
+        setattr(ct_props, "selectable_socket", True)
+        return False
+    else:
+        return True
     
 def reset_collision_objects_selectable(context, previous_state):
     ct_props = context.scene.ct_properties
     setattr(ct_props, "selectable", previous_state)
+def reset_socket_objects_selectable(context, previous_state):
+    ct_props = context.scene.ct_properties
+    setattr(ct_props, "selectable_socket", previous_state)
+
+def prepare_collision_to_export(obj, context, collision_affected, check_if_collision, all_children=False):
+    uee_props = context.scene.uee_properties
+    if obj.children and uee_props.export_collision:
+                for child in obj.children if not all_children else obj.children_recursive:
+                    if check_if_collision(child):
+                        child.select_set(True)
+                        bpy.ops.object.material_slot_remove()
+                        child.active_material = None
+                        collision_affected.append(child)
+
+def prepare_sockets_to_export(obj, context, sockets_affected, all_children=False):
+    uee_props = context.scene.uee_properties
+    if uee_props.export_sockets:
+                    for child in obj.children if not all_children else obj.children_recursive:
+                        if child.name.startswith("SOCKET_") and child.type == 'EMPTY':
+                            child.select_set(True)
+                            sockets_affected.append(child)
+                            child.scale *= 0.01 
