@@ -1,6 +1,6 @@
 import bpy
 from .Functions import *
-from ..CT.Functions import check_if_collision, set_display, get_collision_objects, find_available_collision_name
+from ..CT.Functions import check_if_collision, set_display, get_collision_objects, find_available_collision_name, get_top_parents
 from bpy.types import Operator
 
 
@@ -68,6 +68,8 @@ class UEE_ExportParentedObjects(Operator):
         valid_path, export_dir = check_path_valid(path, self)
         if not valid_path:
             return {'CANCELLED'}
+        
+        context.mode_set(mode='OBJECT')  # Ensure we're in Object Mode for selection and export operations
         
         collision_selectable_state = set_collision_objects_selectable(context)
         socket_selectable_state = set_socket_objects_selectable(context)
@@ -185,12 +187,124 @@ class UEE_SelectSavedPathOperator(Operator):
         saved_path = uee_props.saved_paths[int(uee_props.saved_paths_enum)].name
         uee_props.export_path = saved_path
         return {'FINISHED'}
+    
+class UEE_ExportRigOperator(bpy.types.Operator):
+    bl_idname = "export.export_rig"
+    bl_label = "Export Rig with Animation"
+
+    def execute(self, context):
+        uee_props = context.scene.uee_properties
+        path = uee_props.export_path
+
+        valid_path, export_dir = check_path_valid(path, self)
+        if not valid_path:
+            return {'CANCELLED'}
+
+        selection = list(context.selected_objects)
+        active_before = context.view_layer.objects.active
+
+        if not selection or active_before is None:
+            self.report({'ERROR'}, "Select at least one object in the hierarchy (and make one active).")
+            return {'CANCELLED'}
+        if active_before not in selection:
+            self.report({'ERROR'}, "Active object must be part of the selection.")
+            return {'CANCELLED'}
+
+        def get_root(obj):
+            while obj.parent:
+                obj = obj.parent
+            return obj
+
+        # Root determined from ACTIVE (stable)
+        top_parent = get_root(active_before)
+
+        # Ensure all selected are in same hierarchy root
+        for obj in selection:
+            if get_root(obj) != top_parent:
+                self.report({'ERROR'}, "Selected objects are not in the same hierarchy")
+                return {'CANCELLED'}
+
+        # Pick a good name:
+        # 1) explicit prop
+        # 2) selected/active mesh name
+        # 3) first mesh anywhere under the root
+        object_name = None
+        if active_before and active_before.type == 'MESH':
+            object_name = active_before.name
+        else:
+            sel_mesh = next((o for o in selection if o.type == 'MESH'), None)
+            if sel_mesh:
+                object_name = sel_mesh.name
+            else:
+                any_mesh = next((o for o in top_parent.children_recursive if o.type == 'MESH'), None)
+                if any_mesh:
+                    object_name = any_mesh.name
+
+        name = uee_props.rigged_asset_name or object_name or top_parent.name or "RiggedAsset"
+        file_path = os.path.join(export_dir, f"{name}.{uee_props.export_format.lower()}")
+
+        socket_selectable_state = None
+
+        try:
+            # Make sockets selectable (your existing logic)
+            socket_selectable_state = set_socket_objects_selectable(context)
+
+            # Build export selection from root no matter what user initially selected
+            bpy.ops.object.select_all(action='DESELECT')
+            top_parent.select_set(True)
+            for obj in top_parent.children_recursive:
+                obj.select_set(True)
+
+            context.view_layer.objects.active = top_parent
+
+            bpy.ops.export_scene.fbx(
+                filepath=file_path,
+                use_selection=True,
+
+                object_types={'MESH', 'ARMATURE', 'EMPTY'},
+
+                apply_unit_scale=True,
+                bake_space_transform=True,
+
+                axis_forward='-Y',
+                axis_up='Z',
+
+                use_mesh_modifiers=True,
+                mesh_smooth_type='FACE',
+
+                add_leaf_bones=False,
+                use_armature_deform_only=True,
+                armature_nodetype='NULL',
+
+                bake_anim=True,
+                bake_anim_step=1.0,
+                bake_anim_simplify_factor=0.0,
+                bake_anim_force_startend_keying=True,
+            )
+
+        finally:
+            # Always restore scene state even if export errors
+            if socket_selectable_state is not None:
+                reset_socket_objects_selectable(context, socket_selectable_state)
+
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in selection:
+                if obj and obj.name in context.scene.objects:
+                    obj.select_set(True)
+
+            if active_before and active_before.name in context.scene.objects:
+                context.view_layer.objects.active = active_before
+
+        self.report({'INFO'}, f"Exported rigged asset: {name}.{uee_props.export_format.lower()}")
+        return {'FINISHED'}
+
 
 _classes = (
     UEE_ExportSelectedObjects, 
     UEE_ExportParentedObjects, 
     UEE_AddPathOperator, 
     UEE_SelectSavedPathOperator, 
+    UEE_ExportRigOperator,
 )
 
 def register():

@@ -83,6 +83,17 @@ class UEE_Properties(PropertyGroup):
         description="Include location in the export (not recommended — pivot will not be at origin)", 
         default=False
     )
+    #rig and animation settings
+    export_rig: BoolProperty(
+        name="Export Rig",
+        description="Export Armature modifiers as Unreal Engine compatible rig",
+        default=False,
+    )
+    rigged_asset_name: StringProperty(
+        name="Rigged Asset Name",
+        description="Name of the rigged asset to be exported",
+        default=""
+    )
 
 
 _classes = (

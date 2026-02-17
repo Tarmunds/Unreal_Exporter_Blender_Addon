@@ -302,14 +302,20 @@ def update_selectable(self, context):
     for obj in collision_meshes:
         obj.hide_select = not ct_props.selectable
 
-def get_top_parents(objects):
-    top_parents = set()
-    for obj in objects:
-        parent = obj
-        while parent.parent:
-            parent = parent.parent
-        top_parents.add(parent)
-    return top_parents
+def get_top_parents(objects, run_once=False):
+    if not run_once:
+        top_parents = set()
+        for obj in objects:
+            parent = obj
+            while parent.parent:
+                parent = parent.parent
+            top_parents.add(parent)
+        return top_parents
+    else:
+        obj = objects
+        while obj.parent:
+            obj = obj.parent
+        return obj
 
 def get_relevant_source_objects(context):
     selection = context.selected_objects

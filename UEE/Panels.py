@@ -30,19 +30,8 @@ class UEE_Panel(bpy.types.Panel):
             row.prop(uee_props, "saved_paths_enum", text="Saved Paths")
             row.operator("export.select_saved_path", text="Use Path")
 
-       
-        col = self.layout.column(align=True)
+        layout.separator(type='LINE')
         
-        #---Unity and more Options---
-        box = dropdown_menu(col, uee_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
-        if box:
-
-            row = go_to_row(box)
-            row.prop(uee_props, "y_up", text="Y-Up", toggle=True, icon='CHECKMARK' if uee_props.y_up else 'CANCEL')
-            row.prop(uee_props, "join_meshes", text="Join Meshes at Export", toggle=True, icon='CHECKMARK' if uee_props.join_meshes else 'CANCEL')
-            row = go_to_row(box)
-            row.prop(uee_props, "include_transform", text="Include Location", toggle=True, icon='CHECKMARK' if uee_props.include_transform else 'CANCEL')
-            row.prop(uee_props, "include_curve", text="Include Curve Geometry", toggle=True, icon='CHECKMARK' if uee_props.include_curve else 'CANCEL')
 
         row = go_to_row(layout)
         row.prop(uee_props, "export_collision", text=f"Collision Export {'Enable' if uee_props.export_collision else 'Disable'}", toggle=True, icon='MESH_CUBE' if uee_props.export_collision else 'CANCEL')
@@ -52,6 +41,22 @@ class UEE_Panel(bpy.types.Panel):
         row.operator("export.selected_objects", text="Export Selected Objects", icon='STICKY_UVS_DISABLE')
         row = go_to_row(layout, scale_y=2)
         row.operator("export.parented_objects", text="Export Each Hierarchy", icon='STICKY_UVS_LOC')
+        row = go_to_row(layout, scale_y=2)
+        row.operator("export.export_rig", text="Export Rigged Asset / Animation", icon='ARMATURE_DATA')
+
+        row = go_to_row(layout)
+        #---Unity and more Options---
+        box = dropdown_menu(row, uee_props, "advanced_options", "Advanced Options", section_icon='PREFERENCES')
+        if box:
+
+            row = go_to_row(box)
+            row.prop(uee_props, "y_up", text="Y-Up", toggle=True, icon='CHECKMARK' if uee_props.y_up else 'CANCEL')
+            row.prop(uee_props, "join_meshes", text="Join Meshes at Export", toggle=True, icon='CHECKMARK' if uee_props.join_meshes else 'CANCEL')
+            row = go_to_row(box)
+            row.prop(uee_props, "include_transform", text="Include Location", toggle=True, icon='CHECKMARK' if uee_props.include_transform else 'CANCEL')
+            row.prop(uee_props, "include_curve", text="Include Curve Geometry", toggle=True, icon='CHECKMARK' if uee_props.include_curve else 'CANCEL')
+            row = go_to_row(box)
+            row.prop(uee_props, "rigged_asset_name", text="Rigged Asset Name")
 
 
 _classes = ( 
