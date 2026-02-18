@@ -4,7 +4,7 @@ schema_version = "1.0.0"
 id = "unreal_exporter"
 
 # Use semantic versioning as a string
-version = "5.0.0"
+version = "4.9.9"
 
 name = "Unreal Exporter"
 tagline = "Exports selected objects or hierarchies into separate files at the provided path. Also include some option for Yup engine, and to join meshes before export."
