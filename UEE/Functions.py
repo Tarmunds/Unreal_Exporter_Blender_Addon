@@ -109,13 +109,20 @@ def reset_socket_objects_selectable(context, previous_state):
 
 def prepare_collision_to_export(obj, context, collision_affected, check_if_collision, all_children=False):
     uee_props = context.scene.uee_properties
+    selection = context.selected_objects
+    active_obj = context.view_layer.objects.active
     if obj.children and uee_props.export_collision:
                 for child in obj.children if not all_children else obj.children_recursive:
                     if check_if_collision(child):
+                        bpy.ops.object.select_all(action='DESELECT')
                         child.select_set(True)
+                        context.view_layer.objects.active = child
                         bpy.ops.object.material_slot_remove()
                         child.active_material = None
                         collision_affected.append(child)
+    for obj in selection:
+         obj.select_set(True)
+    context.view_layer.objects.active = active_obj
 
 def prepare_sockets_to_export(obj, context, sockets_affected, all_children=False):
     uee_props = context.scene.uee_properties
