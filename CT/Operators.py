@@ -92,6 +92,7 @@ class CT_GenerateConvexCollisionToSelected(Operator):
             joined_obj = context.selected_objects[0]
             bpy.context.view_layer.objects.active = joined_obj
             bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.select_all(action='SELECT')
             bpy.ops.mesh.convex_hull()
             bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -124,6 +125,13 @@ class CT_GenerateConvexCollisionToSelected(Operator):
         bpy.ops.object.select_all(action="DESELECT")
         for obj in final_collision_objects:
             obj.select_set(True)
+        for obj in final_collision_objects:
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            obj_eval = obj.evaluated_get(depsgraph)
+            mesh = obj_eval.to_mesh()
+            polygon_count = len(mesh.polygons)
+            obj_eval.to_mesh_clear()
+            self.report({'INFO'}, f"Generated {obj.name} convex collision object(s) with {polygon_count} polygons.")
         return {'FINISHED'}
 
 class CT_Regenerate_Capsule_Collision(Operator):
