@@ -8,6 +8,10 @@ class UEE_ExportSelectedObjects(Operator):
     bl_idname = "export.selected_objects"
     bl_label = "Export Selected Objects"
     
+    @classmethod
+    def poll(cls, context):
+        return len(context.selected_objects) > 0 and context.mode == 'OBJECT'
+
 
     def execute(self, context):
         uee_props = context.scene.uee_properties
@@ -59,6 +63,10 @@ class UEE_ExportParentedObjects(Operator):
     bl_idname = "export.parented_objects"
     bl_label = "Export Each Hierarchy"
 
+    @classmethod
+    def poll(cls, context):
+        return len(context.selected_objects) > 0 and context.mode == 'OBJECT'
+
     def execute(self, context):
         uee_props = context.scene.uee_properties
         path = uee_props.export_path
@@ -69,8 +77,6 @@ class UEE_ExportParentedObjects(Operator):
         if not valid_path:
             self.report({'ERROR'}, "Invalid export path. Please set a valid path before exporting.")
             return {'CANCELLED'}
-        
-        context.mode_set(mode='OBJECT')  # Ensure we're in Object Mode for selection and export operations
         
         collision_selectable_state = set_collision_objects_selectable(context)
         socket_selectable_state = set_socket_objects_selectable(context)
