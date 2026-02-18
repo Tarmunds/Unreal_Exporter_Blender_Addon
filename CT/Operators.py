@@ -10,6 +10,10 @@ class CT_AddCollisionToSelected(Operator):
     bl_options = {"REGISTER", "UNDO"}
     bl_description = "Add a simple collision primitive to the selected object(s)"
 
+    @classmethod
+    def poll(cls, context):
+        return method_object_not_collision(context)
+    
     volume_type: bpy.props.EnumProperty(
         name="Collision Volume Type",
         items=[
@@ -45,6 +49,10 @@ class CT_GenerateConvexCollisionToSelected(Operator):
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Generate a convex collision mesh for the selected object(s) using the convex hull algorithm. Be aware of the performance gain of a k-dop collision over a convex hull and try to use the k-dop option when possible. For complex objects consider simplifying them before generating the collision mesh."
     
+    @classmethod
+    def poll(cls, context):
+        return method_object_not_collision(context)
+
     def execute(self, context):
         ct_props = context.scene.ct_properties
         selection = context.selected_objects
@@ -124,6 +132,10 @@ class CT_Regenerate_Capsule_Collision(Operator):
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "Regenerate capsule collision for the selected capsule collision object(s) using the current radius and height settings. This is useful to quickly update the collision mesh after changing the radius or height properties, without having to delete and re-add new capsule collisions."
 
+    @classmethod
+    def poll(cls, context):
+        return method_object_not_collision(context)
+    
     def execute(self, context):
         collision_objects = get_collision_objects()
         selection = context.selected_objects
@@ -159,6 +171,10 @@ class CT_KDOP_generate_collision(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
     bl_description = "Generate a k-DOP collision hull for the selected object(s). k-DOPs (Discrete Oriented Polytopes) are a type of bounding volume that can provide a good balance between accuracy and performance for collision detection. The 'Inside Epsilon' setting can be increased if you find that the generated hull is missing parts of the original mesh, or decreased if the hull is too bloated."
     
+    @classmethod
+    def poll(cls, context):
+        return method_object_not_collision(context)
+
     def execute(self, context):
         ct_props = context.scene.ct_properties
         selection = context.selected_objects
@@ -281,7 +297,7 @@ class CT_SetCollisionVisibility(Operator):
         default=True,
         description="Set collision objects visibility in viewport",
     )
-
+    
     def execute(self, context):
         set_collision_objects_visibility(self.visibility, context)
         return {"FINISHED"}
@@ -291,6 +307,7 @@ class CT_DeleteCollision(Operator):
     bl_label = "Delete Collision"
     bl_options = {"REGISTER", "UNDO"}
     bl_description = "Delete all collision objects from the scene. If 'Selected Hierarchy' is enabled, it will only delete collision objects that are in the same hierarchy as the selected objects, which is useful to quickly clean up collision for specific assets without affecting the whole scene. Use with caution, especially if not using 'Selected Hierarchy', as this will permanently delete all collision objects in the scene without confirmation."
+
 
     selected_hierarchy: bpy.props.BoolProperty(
         name="Selected Hierarchy",
@@ -335,6 +352,10 @@ class CT_ConvertToUCX(Operator):
     bl_options = {"REGISTER", "UNDO"}
     bl_description = "Convert the selected mesh object(s) to a convex collision mesh with a name starting with 'UCX'. This is useful for quickly creating collision meshes from existing geometry. The original mesh objects will be left in place, and the new collision meshes will be created as separate objects with the same transforms. Use with caution, as this can create very high-poly collision meshes if the original geometry is complex, which may not perform well in real-time applications."
 
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'OBJECT' and context.selected_objects
+
     def execute(self, context):
         selection = context.selected_objects
         col_objects = get_collision_objects()
@@ -348,7 +369,7 @@ class CT_ConvertToUCX(Operator):
             if not parent_mesh:
                 self.report({"WARNING"}, f"{obj.name} is not attached to any mesh parent, skipped.")
                 continue
-            if obj in col_objects:
+            if obj.name.startswith("UCX"):
                 self.report({"WARNING"}, f"{obj.name} is already a collision object, skipped.")
                 continue
             base = parent_mesh.name
@@ -361,6 +382,10 @@ class CT_AddSocketToSelected(Operator):
     bl_idname = "ct.add_socket_to_selected"
     bl_label = "Add Socket to Selected"
     bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'OBJECT' and context.selected_objects and all(obj.type == "MESH" for obj in context.selected_objects if obj not in get_collision_objects())
 
     def execute(self, context):
         ct_props = context.scene.ct_properties

@@ -619,3 +619,14 @@ def update_socket_display(self, context):
     for obj in bpy.data.objects:
         if obj.name.startswith("SOCKET_") and obj.type == 'EMPTY':
             set_display_socket(obj, context)
+
+def method_object_not_collision(context):
+    selection = context.selected_objects
+    value = True
+    if not selection:
+        return False
+    for obj in selection:
+        if check_if_collision(obj) or obj.type != 'MESH' or obj.name.startswith("SOCKET_") or context.mode != 'OBJECT':
+            value = False
+            break
+    return value
