@@ -639,3 +639,14 @@ def method_object_not_collision(context):
             value = False
             break
     return value
+
+def method_is_capsule(context):
+    selection = context.selected_objects
+    value = True
+    if not selection:
+        return False
+    for obj in selection:
+        if not obj.name.startswith("UCP_"):
+            value = False
+            break
+    return value

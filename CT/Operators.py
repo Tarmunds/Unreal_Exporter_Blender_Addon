@@ -142,7 +142,7 @@ class CT_Regenerate_Capsule_Collision(Operator):
 
     @classmethod
     def poll(cls, context):
-        return method_object_not_collision(context)
+        return method_is_capsule(context)
     
     def execute(self, context):
         collision_objects = get_collision_objects()
