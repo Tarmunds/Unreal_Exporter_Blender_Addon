@@ -196,8 +196,17 @@ def build_convex_hull_mesh_from_points(points, name="KDOP_HULL"):
         # Clean leftovers that can appear with convex_hull
         geom_unused = res.get("geom_unused", [])
         geom_interior = res.get("geom_interior", [])
-        if geom_unused or geom_interior:
-            bmesh.ops.delete(bm, geom=geom_unused + geom_interior, context="VERTS")
+        all_geom = geom_unused + geom_interior
+        uniq = []
+        seen = set()
+        for g in all_geom:
+            if g.is_valid:
+                k = id(g)
+                if k not in seen:
+                    seen.add(k)
+                    uniq.append(g)
+        if uniq:
+            bmesh.ops.delete(bm, geom=uniq, context="VERTS")
 
         mesh = bpy.data.meshes.new(name)
         bm.to_mesh(mesh)
