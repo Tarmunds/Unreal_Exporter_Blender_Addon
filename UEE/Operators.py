@@ -263,31 +263,73 @@ class UEE_ExportRigOperator(bpy.types.Operator):
                 obj.select_set(True)
 
             context.view_layer.objects.active = top_parent
+            
+            export_settings = uee_props.export_rigged_settings
+            match export_settings:
+                case 'UNREAL_SPACE':
+                    # Blender scene is already in centimeters (Unit Scale = 0.01)
+                    # We do NOT want any unit conversion on export.
+                    bpy.ops.export_scene.fbx(
+                        filepath=file_path,
+                        use_selection=True,
 
-            bpy.ops.export_scene.fbx(
-                filepath=file_path,
-                use_selection=True,
+                        object_types={'MESH', 'ARMATURE', 'EMPTY'},
 
-                object_types={'MESH', 'ARMATURE', 'EMPTY'},
+                        # No unit conversion because scene is already cm
+                        apply_unit_scale=False,
 
-                apply_unit_scale=True,
-                bake_space_transform=True,
+                        # For rigs: keep this OFF (this is the "Apply Transform" checkbox)
+                        bake_space_transform=False,
 
-                axis_forward='-Y',
-                axis_up='Z',
+                        # Stable Unreal mapping
+                        axis_forward='-Z',
+                        axis_up='Y',
 
-                use_mesh_modifiers=True,
-                mesh_smooth_type='FACE',
+                        use_mesh_modifiers=True,
+                        mesh_smooth_type='FACE',
 
-                add_leaf_bones=False,
-                use_armature_deform_only=True,
-                armature_nodetype='NULL',
+                        add_leaf_bones=False,
+                        use_armature_deform_only=True,
+                        armature_nodetype='NULL',
 
-                bake_anim=True,
-                bake_anim_step=1.0,
-                bake_anim_simplify_factor=0.0,
-                bake_anim_force_startend_keying=True,
-            )
+                        bake_anim=True,
+                        bake_anim_step=1.0,
+                        bake_anim_simplify_factor=0.0,
+                        bake_anim_force_startend_keying=True,
+                    )
+
+                case 'BLENDER_SPACE':
+                    # Blender scene is in meters (Unit Scale = 1.0)
+                    # We DO want Blender to convert meters to FBX centimeters.
+                    bpy.ops.export_scene.fbx(
+                        filepath=file_path,
+                        use_selection=True,
+
+                        object_types={'MESH', 'ARMATURE', 'EMPTY'},
+
+                        # Convert meters (Blender default) to centimeters for Unreal
+                        apply_unit_scale=True,
+
+                        # For rigs: keep this OFF
+                        bake_space_transform=False,
+
+                        # Same mapping as above for skeleton consistency
+                        axis_forward='-Y',
+                        axis_up='Z',
+
+                        use_mesh_modifiers=True,
+                        mesh_smooth_type='FACE',
+
+                        add_leaf_bones=False,
+                        use_armature_deform_only=True,
+                        armature_nodetype='NULL',
+
+                        bake_anim=True,
+                        bake_anim_step=1.0,
+                        bake_anim_simplify_factor=0.0,
+                        bake_anim_force_startend_keying=True,
+                    )
+
 
         finally:
             # Always restore scene state even if export errors

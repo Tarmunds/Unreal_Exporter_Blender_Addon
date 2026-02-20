@@ -94,6 +94,25 @@ class UEE_Properties(PropertyGroup):
         description="Name of the rigged asset to be exported",
         default=""
     )
+    export_rigged_settings: EnumProperty(
+        name="Rigged Asset Export Settings",
+        description="Choose export settings for rigged assets",
+        items=[
+            ('UNREAL_SPACE', 'Unreal Space', 'Export rig in Unreal Engine space (Z up, X forward), centimeters scale'),
+            ('BLENDER_SPACE', 'Blender Space', 'Export rig in Blender space (Z up, Y forward), metters scale'),
+        ],
+        default='BLENDER_SPACE'
+    )
+    rig_face_y: BoolProperty(
+        name="Rig Face Y",
+        description="Make the rig face Y forward (instead of X forward) when exporting in Unreal Space. Only works if 'Unreal Space' is selected in Rigged Asset Export Settings.",
+        default=True,
+    )
+    export_only_rig: BoolProperty(
+        name="Export Only Rig",
+        description="Only export the rig (armature) without any mesh data",
+        default=False
+    )
 
 
 _classes = (
