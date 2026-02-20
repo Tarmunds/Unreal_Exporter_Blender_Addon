@@ -122,6 +122,8 @@ def prepare_collision_to_export(obj, context, collision_affected, check_if_colli
                         collision_affected.append(child)
     for obj in selection:
          obj.select_set(True)
+    for obj in collision_affected:
+        obj.select_set(True)
     context.view_layer.objects.active = active_obj
 
 def prepare_sockets_to_export(obj, context, sockets_affected, all_children=False):
