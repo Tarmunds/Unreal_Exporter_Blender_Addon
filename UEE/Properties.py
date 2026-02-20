@@ -49,6 +49,11 @@ class UEE_Properties(PropertyGroup):
         description="Export Socket objects linked to selected obejcts",
         default=True,
     )
+    enable_experimental_features: BoolProperty(
+        name="Enable Experimental Features",
+        description="Enable Experimental features, be crafeul those might not be fully shipped, but none of them can alter your blend file or work",
+        default=False,
+    )
     
     #panel bools
     path_options: BoolProperty(
@@ -111,7 +116,7 @@ class UEE_Properties(PropertyGroup):
     export_only_rig: BoolProperty(
         name="Export Only Rig",
         description="Only export the rig (armature) without any mesh data",
-        default=False
+        default=False,
     )
 
 

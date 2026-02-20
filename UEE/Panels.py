@@ -41,8 +41,9 @@ class UEE_Panel(bpy.types.Panel):
         row.operator("export.selected_objects", text="Export Selected Objects", icon='STICKY_UVS_DISABLE')
         row = go_to_row(layout, scale_y=2)
         row.operator("export.parented_objects", text="Export Each Hierarchy", icon='STICKY_UVS_LOC')
-        row = go_to_row(layout, scale_y=2)
-        row.operator("export.export_rig", text="Export Rigged Asset / Animation", icon='ARMATURE_DATA')
+        if uee_props.enable_experimental_features:
+            row = go_to_row(layout, scale_y=2)
+            row.operator("export.export_rig", text="Export Rigged Asset / Animation", icon='ARMATURE_DATA')
 
         row = go_to_row(layout)
         #---Unity and more Options---
@@ -57,16 +58,18 @@ class UEE_Panel(bpy.types.Panel):
             row.prop(uee_props, "include_transform", text="Include Location", toggle=True, icon='CHECKMARK' if uee_props.include_transform else 'CANCEL')
             row.prop(uee_props, "include_curve", text="Include Curve Geometry", toggle=True, icon='CHECKMARK' if uee_props.include_curve else 'CANCEL')
             box.separator(type='LINE')
+            if uee_props.enable_experimental_features:
+                row = go_to_row(box)
+                row.label(text="Rig and Animation Export Settings", icon='ARMATURE_DATA')
+                row = go_to_row(box)
+                row.prop(uee_props, "export_rigged_settings", text="Rigged Asset Export Settings", expand=True)
+                row.prop(uee_props, "rig_face_y", text="Face Y Forward", toggle=True, icon='CHECKMARK' if uee_props.rig_face_y else 'CANCEL')
+                row = go_to_row(box)
+                row.prop(uee_props, "rigged_asset_name", text="Rigged Asset Name")
+                row.prop(uee_props, "export_only_rig", text=f"Export Only Rig", toggle=True, icon='CHECKMARK' if uee_props.export_only_rig else 'CANCEL')
+                box.separator(type='LINE')
             row = go_to_row(box)
-            row.label(text="Rig and Animation Export Settings", icon='ARMATURE_DATA')
-            row = go_to_row(box)
-            row.prop(uee_props, "export_rigged_settings", text="Rigged Asset Export Settings", expand=True)
-            row.prop(uee_props, "rig_face_y", text="Face Y Forward", toggle=True, icon='CHECKMARK' if uee_props.rig_face_y else 'CANCEL')
-            row = go_to_row(box)
-            row.prop(uee_props, "rigged_asset_name", text="Rigged Asset Name")
-            row.prop(uee_props, "export_only_rig", text=f"Export Only Rig", toggle=True, icon='CHECKMARK' if uee_props.export_only_rig else 'CANCEL')
-            
-            
+            row.prop(uee_props, "enable_experimental_features", toggle=True, icon='CHECKMARK' if uee_props.enable_experimental_features else 'CANCEL')
 
 _classes = ( 
     UEE_Panel, 
