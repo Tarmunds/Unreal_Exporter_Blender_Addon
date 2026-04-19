@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+
+# Unique identifier for the extension (lowercase, python identifier style)
+id = "unreal_exporter"
+
+# Use semantic versioning as a string
+version = "5.0.0"
+
+name = "Unreal Exporter"
+tagline = "Exports selected objects or hierarchies into separate files at the provided path. Include some other engine features. Now support collision primitives and rig export."
+
+maintainer = "Kostia Perry - Tarmunds"
+
+# This is an add-on type extension
+type = "add-on"
+
+# Optional website - use your Gumroad page or doc URL
+website = "https://tarmunds.gumroad.com/l/UnrealExporter"
+
+# Minimum Blender version that supports extensions
+blender_version_min = "4.5.0"
+
+# License must use SPDX identifiers, your LICENSE is MIT
+license = ["SPDX:MIT"]
