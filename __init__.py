@@ -6,7 +6,7 @@ bl_info = {
     "version": (5,0,0),
     "blender": (4, 5, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
-    "description": "Exports selected objects or hierarchies into separate files at the provided path. Also include some option for Yup engine, and to join meshes before export.",
+    "description": "Exports selected objects or hierarchies into separate files at the provided path. Include some other engine features. Now support collision primitives and rig export.",
     "doc_url": "https://tarmunds.gumroad.com/l/UnrealExporter",
     "tracker_url": "https://discord.gg/h39W5s5ZbQ",
     "category": "Import-Export",

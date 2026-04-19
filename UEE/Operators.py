@@ -7,7 +7,8 @@ from bpy.types import Operator
 class UEE_ExportSelectedObjects(Operator):
     bl_idname = "export.selected_objects"
     bl_label = "Export Selected Objects"
-    
+    bl_description = "Export the selected object(s) and their associated collision primitives, centered at the world origin."
+        
     @classmethod
     def poll(cls, context):
         return len(context.selected_objects) > 0 and context.mode == 'OBJECT'
@@ -62,6 +63,7 @@ class UEE_ExportSelectedObjects(Operator):
 class UEE_ExportParentedObjects(Operator):
     bl_idname = "export.parented_objects"
     bl_label = "Export Each Hierarchy"
+    bl_description = "Export the selected object(s), their associated collision primitives, and their parent hierarchy, centered at the world origin."
 
     @classmethod
     def poll(cls, context):
@@ -176,6 +178,7 @@ class UEE_ExportParentedObjects(Operator):
 class UEE_AddPathOperator(Operator):
     bl_idname = "export.add_path"
     bl_label = "Save Export Path"
+    bl_description = "Save the current export path"
 
     def execute(self, context):
         uee_props = context.scene.uee_properties
@@ -188,6 +191,7 @@ class UEE_AddPathOperator(Operator):
 class UEE_SelectSavedPathOperator(Operator):
     bl_idname = "export.select_saved_path"
     bl_label = "Select Saved Path"
+    bl_description = "Select a saved export path"
 
     def execute(self, context):
         uee_props = context.scene.uee_properties
@@ -198,6 +202,7 @@ class UEE_SelectSavedPathOperator(Operator):
 class UEE_ExportRigOperator(bpy.types.Operator):
     bl_idname = "export.export_rig"
     bl_label = "Export Rig with Animation"
+    bl_description = "Export the selected rig with its animation data"
 
     def execute(self, context):
         uee_props = context.scene.uee_properties
