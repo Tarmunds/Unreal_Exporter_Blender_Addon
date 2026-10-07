@@ -1,4 +1,6 @@
-separate the collision tool ?
+--- collision ---
+
+toggle to hide collision tool
 
 collisison slicer
 or from selection in editor
@@ -9,3 +11,7 @@ collision merger or reattach
 
 convert to ucx, fix wrong ucx (such after separate recombine)
 check for the material for the display and replace it if not the good one
+
+
+--- exporter ---
+apply modifier before (hierarchy too)
