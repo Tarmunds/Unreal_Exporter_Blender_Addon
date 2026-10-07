@@ -1,4 +1,5 @@
 import importlib
+import bpy
 
 bl_info = {
     "name": "Unreal Exporter",
@@ -29,7 +30,22 @@ _modules = tuple(importlib.import_module(f".{name}", __name__) for name in _SubM
 for module in _modules:
     importlib.reload(module)
 
+
+class UEE_AddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    show_collision_tools: bpy.props.BoolProperty(
+        name="Show Collision Tools Panel",
+        default=True,
+        description="Display the Collision Tools panel in the sidebar",
+    )
+
+    def draw(self, context):
+        self.layout.prop(self, "show_collision_tools")
+
+
 def register():
+    bpy.utils.register_class(UEE_AddonPreferences)
     for module in _modules:
         if hasattr(module, "register"):
             module.register()
@@ -38,3 +54,4 @@ def unregister():
     for module in reversed(_modules):
         if hasattr(module, "unregister"):
             module.unregister()
+    bpy.utils.unregister_class(UEE_AddonPreferences)

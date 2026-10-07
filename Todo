@@ -1,17 +1,11 @@
 --- collision ---
 
-toggle to hide collision tool
+collisison slicer (important tool)
+-> partially covered: convex/kdop generation from an Edit Mode selection is in.
+   still missing a real slicer (bisect / split a collision into pieces in one click)
 
-collisison slicer
-or from selection in editor
-
-auto fit basic collision primitive
-
-collision merger or reattach
-
-convert to ucx, fix wrong ucx (such after separate recombine)
-check for the material for the display and replace it if not the good one
-
+collision merger (join several collisions into one)
+-> reattach/rebind is in (Convert / Rebind, keeps the prefix, follows the parent)
 
 --- exporter ---
 apply modifier before (hierarchy too)

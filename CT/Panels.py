@@ -1,5 +1,6 @@
 import bpy
 from ..Utils.PanelUtils import *
+from .Functions import collision_tools_enabled
 
 class CT_Panel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_collision_tools"
@@ -7,6 +8,10 @@ class CT_Panel(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Tarmunds Addons'
+
+    @classmethod
+    def poll(cls, context):
+        return collision_tools_enabled(context)
 
     def draw_header_preset(self, context):
         layout = self.layout
@@ -38,6 +43,9 @@ class CT_Panel(bpy.types.Panel):
 
         right.label(text="UBX, USP, UCP")
 
+        row = go_to_row(layout)
+        row.prop(ct_props, "try_to_fit_simple_collision", text="Auto Fit to Bounds", toggle=True, icon='CON_SIZELIKE')
+
         row = go_to_row(layout, scale_y=2.0)
         row.operator("ct.add_collision_to_selected", text="Add Cube Collision", icon='CUBE').volume_type = "BOX"
         row.operator("ct.add_collision_to_selected", text="Add Sphere Collision", icon='SPHERE').volume_type = "SPHERE"
@@ -55,7 +63,7 @@ class CT_Panel(bpy.types.Panel):
         row = go_to_row(layout)
         left, right = split_row(row, factor=0.5)
         left.label(text="Collision Generators:")
-        right.operator("ct.convert_to_ucx", text="Convert to UCX")
+        right.operator("ct.convert_to_ucx", text="Convert / Rebind")
         right.label(text="UCX")
 
 
@@ -85,7 +93,13 @@ class CT_Panel(bpy.types.Panel):
             row.prop(ct_props, "kdop_inside_epsilon", text="Inside Epsilon")
             row = go_to_row(box)
             row.prop(ct_props, "kdop_name_prefix", text="Prefix")
-        
+
+        row = go_to_row(layout)
+        row.label(text="From Edit Mode Selection:")
+        row = go_to_row(layout, scale_y=1.5)
+        row.operator("ct.collision_from_selection", text="Convex from Selection", icon='MOD_SOLIDIFY').hull_type = "CONVEX"
+        row.operator("ct.collision_from_selection", text="k-DOP from Selection", icon='MESH_ICOSPHERE').hull_type = "KDOP"
+
         #--- Socket Options ---
         layout.separator(type='LINE')
         box = dropdown_menu(layout, ct_props, "socket_options", "Socket Options", section_icon='EMPTY_DATA')

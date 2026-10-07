@@ -3,8 +3,14 @@ import bmesh
 from mathutils import Vector, Matrix
 from ..UEE.Functions import convert_to_mesh
 
+COLLISION_PREFIXES = ("UCX_", "UBX_", "USP_", "UCP_")
+
 def clamp(x, a=0.0, b=1.0):
     return max(a, min(b, x))
+
+def collision_tools_enabled(context):
+    addon = context.preferences.addons.get(__package__.rpartition(".")[0])
+    return bool(addon.preferences.show_collision_tools) if addon else True
 
 def _unit(v: Vector) -> Vector:
     l = v.length
@@ -275,17 +281,16 @@ def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
         mat = bpy.data.materials.new(mat_name)
         mat.diffuse_color = mat_color
         mat.roughness = 1.0
-    if obj.data.materials:
-        obj.data.materials[0] = mat
-    else:
-        obj.data.materials.append(mat)
+    # A collision mesh keeps exactly one slot holding the collision material. Leftover
+    # source materials (convert to UCX, join) or a wrong material are replaced, not kept.
+    mats = obj.data.materials
+    if len(mats) != 1 or mats[0] is not mat:
+        mats.clear()
+        mats.append(mat)
     return mat, mat_color
 
 def get_collision_objects():
-    return [
-        obj for obj in bpy.data.objects
-        if obj.type == 'MESH' and (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_") or obj.name.startswith("UCP_"))
-    ]
+    return [obj for obj in bpy.data.objects if check_if_collision(obj)]
 
 
 
@@ -415,6 +420,41 @@ def add_box_collision_to_selected(context, self):
 
         
     
+def source_local_bounds(obj):
+    """(center, size, verts) of obj's evaluated geometry in its own local space."""
+    verts = get_object_vertices(obj, True, "LOCAL")
+    if not verts:
+        return None
+    min_v = Vector((min(v.x for v in verts), min(v.y for v in verts), min(v.z for v in verts)))
+    max_v = Vector((max(v.x for v in verts), max(v.y for v in verts), max(v.z for v in verts)))
+    return (min_v + max_v) * 0.5, max_v - min_v, verts
+
+def apply_capsule_fit(ct_props, bounds):
+    """Size the capsule properties to the bounds, so the generator builds it fitted.
+
+    Assigned radius first then height: the property update callbacks keep the pair valid.
+    """
+    _, size, _ = bounds
+    # ponytail: capsule assumed Z-up (Unreal convention), no best-axis search
+    ct_props.capsule_radius = max(size.x, size.y, 0.02) * 0.5
+    ct_props.capsule_height = max(size.z, ct_props.capsule_radius * 2.0)
+
+def fit_transforms_and_parent(source_obj, col_obj, prefix, bounds):
+    """Place a freshly spawned primitive onto the source bounds, then parent it."""
+    center, size, verts = bounds
+    if prefix == "USP":
+        r = max(max((v - center).length for v in verts), 1e-4)
+        scale = (r, r, r)
+    elif prefix == "UBX":
+        scale = (max(size.x, 1e-4) * 0.5, max(size.y, 1e-4) * 0.5, max(size.z, 1e-4) * 0.5)
+    else:
+        scale = (1.0, 1.0, 1.0)  # capsule is already generated at the fitted size
+
+    mw = source_obj.matrix_world @ Matrix.Translation(center) @ Matrix.Diagonal((*scale, 1.0))
+    col_obj.parent = source_obj
+    col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+    col_obj.matrix_world = mw
+
 def copy_transforms_and_parent(target_obj, col_obj):
         col_obj.matrix_world = Matrix.Translation(target_obj.location)
         mw = col_obj.matrix_world.copy()
@@ -442,13 +482,19 @@ def spawn_collision(context, self, operator, prefix="UBX", pass_context=False):
         if check_if_collision(obj):
             self.report({'WARNING'}, f"Collision objects selected. {obj.name} is skipped")
             continue
+        bounds = source_local_bounds(obj) if ct_props.try_to_fit_simple_collision else None
+        if bounds and prefix == "UCP":
+            apply_capsule_fit(ct_props, bounds)
         if context and self and pass_context:
             operator(context=context, self=self)        
         else :
             operator()
         box = context.view_layer.objects.active
         box.name = find_available_collision_name(obj.name, prefix)
-        copy_transforms_and_parent(obj, box)
+        if bounds:
+            fit_transforms_and_parent(obj, box, prefix, bounds)
+        else:
+            copy_transforms_and_parent(obj, box)
         set_display(box, context)
         collision_set.append(box)
     set_selection(collision_set)
@@ -477,10 +523,19 @@ def simple_sphere():
     bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=8)
     
 def check_if_collision(obj):
-    if (obj.name.startswith("UCX_") or obj.name.startswith("UBX_") or obj.name.startswith("USP_") or obj.name.startswith("UCP_")) and obj.type == 'MESH':
-        return True
-    else :
-        return False
+    return obj.type == 'MESH' and obj.name.startswith(COLLISION_PREFIXES)
+
+def collision_prefix(obj):
+    """Collision prefix of obj without its trailing underscore, or None."""
+    for p in COLLISION_PREFIXES:
+        if obj.name.startswith(p):
+            return p[:-1]
+    return None
+
+def name_matches_parent(obj, parent):
+    """True when obj is already named after parent, so it binds to it in Unreal."""
+    prefix = collision_prefix(obj)
+    return prefix is not None and obj.name.startswith(f"{prefix}_{parent.name}_")
 
 
 def spawn_capsule(name="Capsule", radius=0.25, height=1.0, location=(0, 0, 0), segments=32, rings=16, context=None):
@@ -560,6 +615,15 @@ def spawn_capsule(name="Capsule", radius=0.25, height=1.0, location=(0, 0, 0), s
 
     return capsule, source_obj
 
+
+def get_selected_verts(obj, space="LOCAL"):
+    """Vertices selected in the mesh currently being edited."""
+    bm = bmesh.from_edit_mesh(obj.data)
+    verts = [v.co.copy() for v in bm.verts if v.select]
+    if space == "WORLD":
+        mw = obj.matrix_world
+        return [mw @ v for v in verts]
+    return verts
 
 def delete_half(obj,axis="Z", above=True):
 

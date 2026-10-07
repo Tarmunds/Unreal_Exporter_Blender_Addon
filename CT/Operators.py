@@ -356,9 +356,9 @@ class CT_DeleteCollision(Operator):
 
 class CT_ConvertToUCX(Operator):
     bl_idname = "ct.convert_to_ucx"
-    bl_label = "Convert to UCX Collision"
+    bl_label = "Convert / Rebind Collision"
     bl_options = {"REGISTER", "UNDO"}
-    bl_description = "Convert the selected mesh object(s) to a convex collision mesh with a name starting with 'UCX'. This is useful for quickly creating collision meshes from existing geometry. The original mesh objects will be left in place, and the new collision meshes will be created as separate objects with the same transforms. Use with caution, as this can create very high-poly collision meshes if the original geometry is complex, which may not perform well in real-time applications."
+    bl_description = "Name the selected mesh object(s) after their mesh parent, so Unreal binds them as collision of that asset. Objects that already carry a collision prefix are renamed too whenever their name no longer matches their parent, which rebinds a collision that ended up on the wrong asset (the existing UBX/USP/UCP prefix is kept, plain meshes become UCX). Make a non-collision mesh the active object to reparent the selected collisions onto it in the same click"
 
     @classmethod
     def poll(cls, context):
@@ -367,23 +367,91 @@ class CT_ConvertToUCX(Operator):
     def execute(self, context):
         selection = context.selected_objects
         col_objects = get_collision_objects()
-        if not selection:
-            self.report({"WARNING"}, "No objects selected.")
-            return {"CANCELLED"}
+        active = context.active_object
+        # An active non-collision mesh is an explicit rebind target, but only when collisions
+        # are selected alongside it. Otherwise a lone mesh child still converts against its
+        # own parent instead of being treated as its own target.
+        target = None
+        if active and active.type == "MESH" and not check_if_collision(active):
+            if any(o is not active and check_if_collision(o) for o in selection):
+                target = active
 
-        final_collision_objects = []
-        for obj in selection :            
+        renamed = 0
+        for obj in selection:
+            if obj is target or obj.type != "MESH":
+                continue
+
+            if target and check_if_collision(obj) and obj.parent is not target:
+                mw = obj.matrix_world.copy()
+                obj.parent = target
+                obj.matrix_parent_inverse = target.matrix_world.inverted_safe()
+                obj.matrix_world = mw
+
             parent_mesh = obj.parent if (obj.parent and obj.parent.type == "MESH" and obj.parent not in col_objects) else None
             if not parent_mesh:
                 self.report({"WARNING"}, f"{obj.name} is not attached to any mesh parent, skipped.")
                 continue
-            if obj.name.startswith("UCX"):
-                self.report({"WARNING"}, f"{obj.name} is already a collision object, skipped.")
+            if name_matches_parent(obj, parent_mesh):
                 continue
-            base = parent_mesh.name
-            obj.name = find_available_collision_name(base, prefix="UCX")
+            obj.name = find_available_collision_name(parent_mesh.name, prefix=collision_prefix(obj) or "UCX")
             set_display(obj, context)
+            renamed += 1
 
+        self.report({"INFO"}, f"{renamed} collision object(s) bound to their parent.")
+        return {"FINISHED"}
+
+class CT_CollisionFromSelection(Operator):
+    bl_idname = "ct.collision_from_selection"
+    bl_label = "Collision from Selection"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Generate a collision hull from the vertices selected in Edit Mode, parented to the edited object. Slice an asset into several collision pieces by selecting one part, generating, then moving on to the next part"
+
+    hull_type: bpy.props.EnumProperty(
+        name="Hull Type",
+        items=[
+            ("CONVEX", "Convex", "Convex hull of the selected vertices"),
+            ("KDOP", "k-DOP", "k-DOP hull of the selected vertices, using the k-DOP Mode setting"),
+        ],
+        default="CONVEX",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'EDIT_MESH' and context.edit_object is not None
+
+    def execute(self, context):
+        ct_props = context.scene.ct_properties
+        source_obj = context.edit_object
+        verts = get_selected_verts(source_obj, space=ct_props.kdop_space)
+        if len(verts) < 4:
+            self.report({"WARNING"}, "Select at least 4 vertices.")
+            return {"CANCELLED"}
+
+        if self.hull_type == "KDOP":
+            planes = build_kdop_planes(verts, kdop_directions(ct_props.kdop_mode))
+            points = generate_kdop_points(planes, inside_eps=ct_props.kdop_inside_epsilon)
+            if len(points) < 4:
+                self.report({"ERROR"}, f"Not enough hull points generated ({len(points)}). Try another DOP type or increase Inside Epsilon.")
+                return {"CANCELLED"}
+        else:
+            points = verts
+
+        if ct_props.kdop_space == "WORLD":
+            inv = source_obj.matrix_world.inverted_safe()
+            points = [inv @ p for p in points]
+
+        hull_mesh = build_convex_hull_mesh_from_points(points, name=f"{source_obj.name}_COL_MESH")
+        if hull_mesh is None:
+            self.report({"ERROR"}, "Failed to build convex hull mesh")
+            return {"CANCELLED"}
+
+        col_name = find_available_collision_name(source_obj.name, prefix="UCX")
+        col_obj = create_collision_object(source_obj, hull_mesh, col_name, context=context)
+        col_obj.matrix_world = source_obj.matrix_world.copy()
+        col_obj.parent = source_obj
+        col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+
+        self.report({"INFO"}, f"Generated {col_obj.name} from {len(verts)} selected vertices.")
         return {"FINISHED"}
 
 class CT_AddSocketToSelected(Operator):
@@ -437,6 +505,7 @@ _classes = (
     CT_DeleteCollision,
     CT_Regenerate_Capsule_Collision,
     CT_ConvertToUCX,
+    CT_CollisionFromSelection,
 )
 
 def register():
