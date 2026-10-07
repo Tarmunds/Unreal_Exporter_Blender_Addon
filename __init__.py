@@ -3,7 +3,7 @@ import importlib
 bl_info = {
     "name": "Unreal Exporter",
     "author": "Tarmunds",
-    "version": (5,0,0),
+    "version": (5,1,0),
     "blender": (4, 5, 0),
     "location": "View3D > Tarmunds Addons > Export Unreal",
     "description": "Exports selected objects or hierarchies into separate files at the provided path. Include some other engine features. Now support collision primitives and rig export.",

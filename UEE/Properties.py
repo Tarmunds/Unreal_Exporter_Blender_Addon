@@ -118,6 +118,11 @@ class UEE_Properties(PropertyGroup):
         description="Only export the rig (armature) without any mesh data",
         default=False,
     )
+    apply_modifier_before: BoolProperty(
+        name="Apply Modifiers Before reset of position",
+        description="Apply all modifiers before setting the position of the object to origin. This is useful for objects that have modifiers that affect their geometry, such as Data Transfer or Boolean modifiers.",
+        default=False,
+    )
 
 
 _classes = (

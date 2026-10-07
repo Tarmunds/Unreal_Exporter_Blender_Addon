@@ -4,7 +4,7 @@ schema_version = "1.0.0"
 id = "unreal_exporter"
 
 # Use semantic versioning as a string
-version = "5.0.0"
+version = "5.1.0"
 
 name = "Unreal Exporter"
 tagline = "Exports selected objects or hierarchies into separate files at the provided path. Include some other engine features. Now support collision primitives and rig export."

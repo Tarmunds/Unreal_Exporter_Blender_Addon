@@ -1,0 +1,11 @@
+separate the collision tool ?
+
+collisison slicer
+or from selection in editor
+
+auto fit basic collision primitive
+
+collision merger or reattach
+
+convert to ucx, fix wrong ucx (such after separate recombine)
+check for the material for the display and replace it if not the good one

@@ -57,6 +57,10 @@ class UEE_Panel(bpy.types.Panel):
             row = go_to_row(box)
             row.prop(uee_props, "include_transform", text="Include Location", toggle=True, icon='CHECKMARK' if uee_props.include_transform else 'CANCEL')
             row.prop(uee_props, "include_curve", text="Include Curve Geometry", toggle=True, icon='CHECKMARK' if uee_props.include_curve else 'CANCEL')
+            #Apply Modifier Before Reset
+            row = go_to_row(box)
+            row.prop(uee_props, "apply_modifier_before", text="Apply Modifiers Before Reset", toggle=True, icon='CHECKMARK' if uee_props.apply_modifier_before else 'CANCEL')
+
             box.separator(type='LINE')
             if uee_props.enable_experimental_features:
                 row = go_to_row(box)

@@ -27,21 +27,45 @@ class UEE_ExportSelectedObjects(Operator):
         collision_selectable_state = set_collision_objects_selectable(context)
         socket_selectable_state = set_socket_objects_selectable(context)
 
-        selection = context.selected_objects
+        selection = list(context.selected_objects)
+        reset_selection = list(selection)
         for obj in selection:
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
 
+            #collision pass
             collision_affected = []
             prepare_collision_to_export(obj, context, collision_affected, check_if_collision)
             socket_affected = []
             prepare_sockets_to_export(obj, context, socket_affected)
 
             original_location = obj.location.copy()
+            original_name = obj.name
+
+            #temporary change name and duplicate
+            if uee_props.apply_modifier_before:
+                duplicate_obj = obj.copy()
+                duplicate_obj.data = obj.data.copy() #separate mesh data for the duplicate
+                duplicate_obj.name = find_available_collision_name(duplicate_obj.name, "DUPLICATE")
+                duplicate_obj.select_set(False)
+                reset_selection.remove(obj)
+                reset_selection.append(duplicate_obj) #Setting up collision list to the duplicate instead of the original
+                obj = convert_to_mesh(obj)[0] #now modifier applied and dup setup
+                
             if not include_transform:
                 obj.location = (0, 0, 0)
 
+            #main export
             c = export_object(obj, export_dir, self)
+
+            #restore duplicate and name
+            if uee_props.apply_modifier_before:
+                bpy.data.objects.remove(obj, do_unlink=True)
+                obj = duplicate_obj
+                obj.name = original_name
+                bpy.context.collection.objects.link(obj)
+                obj.select_set(True)
+
             if not include_transform:
                 obj.location = original_location
             if not c:
@@ -56,7 +80,7 @@ class UEE_ExportSelectedObjects(Operator):
             
         reset_collision_objects_selectable(context, collision_selectable_state)
         reset_socket_objects_selectable(context, socket_selectable_state)
-        restore_selection(selection)
+        restore_selection(reset_selection)
         return {'FINISHED'}
 
 
