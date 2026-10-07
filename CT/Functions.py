@@ -1,9 +1,11 @@
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
+from bpy_extras.view3d_utils import region_2d_to_origin_3d, region_2d_to_vector_3d
 from ..UEE.Functions import convert_to_mesh
 
 COLLISION_PREFIXES = ("UCX_", "UBX_", "USP_", "UCP_")
+SLICE_TAG = "ct_slice"
 
 def clamp(x, a=0.0, b=1.0):
     return max(a, min(b, x))
@@ -244,22 +246,20 @@ def set_display(obj, context):
         obj.display_type = "SOLID"
         obj.show_in_front = True
         obj.show_wire = True
-        mat.diffuse_color = mat_color
     elif wire:
         obj.display_type = "WIRE"
         obj.show_in_front = False
         obj.show_wire = False
-        mat.diffuse_color = (1, 1, 1, 1)
     elif color:
         obj.display_type = "SOLID"
         obj.show_in_front = True
         obj.show_wire = False
-        mat.diffuse_color = mat_color
     else:
         obj.display_type = "SOLID"
         obj.show_in_front = False
         obj.show_wire = False
-        mat.diffuse_color = (1, 1, 1, 1)
+    # One shared material, so the colour follows the toggle for every collision at once.
+    setup_collision_material(mat, mat_color if color else (1.0, 1.0, 1.0, 1.0))
     
     obj.hide_select = not ct_props.selectable
 
@@ -274,15 +274,33 @@ def set_display_socket(socket, context):
     socket.hide_select = not selectable
 
 
-def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
-    mat_name = "M_CT_Collision_Mat"
-    mat = bpy.data.materials.get(mat_name)
+def setup_collision_material(mat, mat_color):
+    """Make the collision material read as a translucent overlay in every shading mode.
+
+    diffuse_color alone only covers Solid shading, which is why collision imported from
+    Unreal kept showing its own material in Material Preview and Rendered.
+    """
+    mat.diffuse_color = mat_color
+    mat.roughness = 1.0
+    mat.surface_render_method = 'BLENDED'
+    node = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None) if mat.node_tree else None
+    if node:
+        node.inputs["Base Color"].default_value = (mat_color[0], mat_color[1], mat_color[2], 1.0)
+        node.inputs["Alpha"].default_value = mat_color[3]
+        node.inputs["Roughness"].default_value = 1.0
+    return mat
+
+def get_collision_material(mat_color=(0.31, 0.258, 1, 0.278)):
+    mat = bpy.data.materials.get("M_CT_Collision_Mat")
     if mat is None:
-        mat = bpy.data.materials.new(mat_name)
-        mat.diffuse_color = mat_color
-        mat.roughness = 1.0
-    # A collision mesh keeps exactly one slot holding the collision material. Leftover
-    # source materials (convert to UCX, join) or a wrong material are replaced, not kept.
+        mat = bpy.data.materials.new("M_CT_Collision_Mat")
+    return setup_collision_material(mat, mat_color)
+
+def assign_collision_material(obj, mat_color=(0.31, 0.258, 1, 0.278)):
+    mat = get_collision_material(mat_color)
+    # A collision mesh keeps exactly one slot holding the collision material. Whatever came
+    # in with it (Unreal imports arrive with their own materials, joins leave leftovers)
+    # is replaced rather than kept alongside.
     mats = obj.data.materials
     if len(mats) != 1 or mats[0] is not mat:
         mats.clear()
@@ -616,6 +634,118 @@ def spawn_capsule(name="Capsule", radius=0.25, height=1.0, location=(0, 0, 0), s
     return capsule, source_obj
 
 
+def view_cut_plane(region, rv3d, start, end):
+    """World space (point, normal) of the plane through a screen line and the view.
+
+    The plane contains the view rays cast through both ends of the drawn line, so the
+    cut is whatever you see yourself drawing, from any orbit angle.
+    """
+    o1 = region_2d_to_origin_3d(region, rv3d, start)
+    d1 = region_2d_to_vector_3d(region, rv3d, start)
+    o2 = region_2d_to_origin_3d(region, rv3d, end)
+    d2 = region_2d_to_vector_3d(region, rv3d, end)
+    n = d1.cross(d2)
+    if n.length < 1e-6:          # orthographic view: the two rays are parallel
+        n = d1.cross(o2 - o1)
+    if n.length < 1e-6:
+        return None
+    return o1, n.normalized()
+
+def world_plane_to_local(obj, co, normal):
+    mw_inv = obj.matrix_world.inverted_safe()
+    return mw_inv @ co, (mw_inv.to_3x3().transposed() @ normal).normalized()
+
+def source_bmesh(obj, context):
+    """bmesh of obj's evaluated geometry, in object local space."""
+    depsgraph = context.evaluated_depsgraph_get()
+    obj_eval = obj.evaluated_get(depsgraph)
+    mesh = obj_eval.to_mesh()
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(mesh)
+    finally:
+        obj_eval.to_mesh_clear()
+    return bm
+
+def clip_bmesh(bm, co, normal, dist=1e-6):
+    """Drop the part of bm on the positive side of the plane, in place.
+
+    bisect_plane creates the vertices where the plane crosses the geometry, so the
+    hull of what is left meets the neighbouring piece exactly on the cut.
+    """
+    geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+    bmesh.ops.bisect_plane(bm, geom=geom, dist=dist, plane_co=co, plane_no=normal, clear_outer=True)
+    return bm
+
+def split_slice_regions(regions, co, normal):
+    """Split every region whose geometry the plane actually crosses.
+
+    A region is a dict of the planes bounding it, the clipped source geometry cached as
+    a bmesh, and the collision object showing it. Returns (regions, retired), where
+    retired holds the objects of replaced regions for the caller to remove.
+    """
+    out, retired = [], []
+    for region in regions:
+        inner = clip_bmesh(region["bm"].copy(), co, normal)
+        outer = clip_bmesh(region["bm"].copy(), co, -normal)
+        if len(inner.verts) < 4 or len(outer.verts) < 4:
+            inner.free()
+            outer.free()
+            out.append(region)
+            continue
+        # ponytail: regions are cached per piece, so a cut only re-clips what it crosses.
+        # A rebuild from the full source each time would be 2**cuts clips instead.
+        region["bm"].free()
+        if region["obj"] is not None:
+            retired.append(region["obj"])
+        out.append({"planes": region["planes"] + [(co, normal)], "bm": inner, "obj": None})
+        out.append({"planes": region["planes"] + [(co, -normal)], "bm": outer, "obj": None})
+    return out, retired
+
+def budget_collision_faces(col_obj, target_face_count):
+    """Live decimate so a piece respects the panel's face budget.
+
+    Left unbaked on purpose: both exporters apply modifiers, so Unreal gets the budgeted
+    mesh while the piece stays re-editable here. Re-callable: it retunes the modifier it
+    already added and drops it once the budget covers the mesh outright.
+    """
+    face_count = len(col_obj.data.polygons)
+    dec = next((m for m in col_obj.modifiers if m.type == 'DECIMATE'), None)
+    if face_count <= target_face_count:
+        if dec:
+            col_obj.modifiers.remove(dec)
+        return
+    if dec is None:
+        dec = col_obj.modifiers.new(name="Decimate", type='DECIMATE')
+    dec.decimate_type = 'COLLAPSE'
+    dec.ratio = clamp(target_face_count / face_count)
+    dec.use_collapse_triangulate = True
+
+def slice_collision_piece(bm, source_obj, context):
+    """Convex collision object for one sliced region, or None if it is degenerate."""
+    ct_props = context.scene.ct_properties
+    mesh = build_convex_hull_mesh_from_points(
+        [v.co.copy() for v in bm.verts], name=f"{source_obj.name}_SLICE_MESH"
+    )
+    if mesh is None:
+        return None
+    col_obj = create_collision_object(
+        source_obj,
+        mesh,
+        find_available_collision_name(source_obj.name, prefix="UCX"),
+        context=context,
+    )
+    col_obj.matrix_world = source_obj.matrix_world.copy()
+    col_obj.parent = source_obj
+    col_obj.matrix_parent_inverse = source_obj.matrix_world.inverted_safe()
+    col_obj[SLICE_TAG] = True
+    budget_collision_faces(col_obj, ct_props.target_face_count)
+    return col_obj
+
+def get_slice_pieces(source_obj):
+    """Collision children this tool generated, never hand made ones."""
+    return [c for c in source_obj.children if SLICE_TAG in c and check_if_collision(c)]
+
 def get_selected_verts(obj, space="LOCAL"):
     """Vertices selected in the mesh currently being edited."""
     bm = bmesh.from_edit_mesh(obj.data)
@@ -672,10 +802,9 @@ def update_collision_object_display(self, context):
 
 def update_color_display(self, context):
     ct_props = context.scene.ct_properties
-    mat_name = "M_CT_Collision_Mat"
-    mat = bpy.data.materials.get(mat_name)
+    mat = bpy.data.materials.get("M_CT_Collision_Mat")
     if mat:
-        mat.diffuse_color = ct_props.mat_color    
+        setup_collision_material(mat, ct_props.mat_color)
         
 def update_radius(self, context):
     ct_props = context.scene.ct_properties

@@ -94,6 +94,9 @@ class CT_Panel(bpy.types.Panel):
             row = go_to_row(box)
             row.prop(ct_props, "kdop_name_prefix", text="Prefix")
 
+        row = go_to_row(layout, scale_y=2.0)
+        row.operator("ct.slice_collision", text="Slice Collision (draw cuts)", icon='MOD_BEVEL')
+
         row = go_to_row(layout)
         row.label(text="From Edit Mode Selection:")
         row = go_to_row(layout, scale_y=1.5)

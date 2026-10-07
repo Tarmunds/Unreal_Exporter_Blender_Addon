@@ -1,6 +1,9 @@
 from multiprocessing import context
 import bpy
+import gpu
 from bpy.types import Operator
+from gpu_extras.batch import batch_for_shader
+from mathutils import Vector
 from .Functions import *
 from ..UEE.Functions import restore_selection, convert_to_mesh, find_top_parent_in_one_hierarchy
 
@@ -454,6 +457,222 @@ class CT_CollisionFromSelection(Operator):
         self.report({"INFO"}, f"Generated {col_obj.name} from {len(verts)} selected vertices.")
         return {"FINISHED"}
 
+def _draw_slice_line(op, context):
+    if not op.dragging:
+        return
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    gpu.state.blend_set('ALPHA')
+    gpu.state.line_width_set(2.0)
+    batch = batch_for_shader(shader, 'LINES', {"pos": [op.start, op.end]})
+    shader.bind()
+    shader.uniform_float("color", (1.0, 0.55, 0.1, 1.0))
+    batch.draw(shader)
+    gpu.state.line_width_set(1.0)
+    gpu.state.blend_set('NONE')
+
+
+class CT_SliceCollision(Operator):
+    bl_idname = "ct.slice_collision"
+    bl_label = "Slice Collision"
+    bl_options = {"REGISTER", "UNDO"}
+    bl_description = "Carve the active mesh into convex collision pieces by drawing cuts in the viewport. Drag a line to cut along the plane you see, orbit with the middle mouse between cuts and keep drawing. Each piece is rebuilt from the source geometry inside it, so pieces hug the asset instead of inheriting one bloated hull. C and W toggle the collision colour and wireframe, + and - retune the face budget live. Enter or Esc ends the session and keeps the pieces"
+
+    # Drag shorter than this is a misclick, not a cut.
+    MIN_DRAG_PX = 8
+
+    DISPLAY_KEYS = {'C': "color_display", 'W': "wire_display"}
+    # Letters only: bracket and numpad keys need AltGr on AZERTY, and numpad +/- is zoom.
+    BUDGET_KEY = 'F'
+    BUDGET_STEP = 5
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return (
+            context.mode == 'OBJECT'
+            and context.area is not None
+            and context.area.type == 'VIEW_3D'
+            and obj is not None
+            and obj.type == 'MESH'
+            and not check_if_collision(obj)
+            and not obj.name.startswith("SOCKET_")
+        )
+
+    def invoke(self, context, event):
+        self.source = context.active_object
+        self.region = next((r for r in context.area.regions if r.type == 'WINDOW'), None)
+        self.rv3d = self.region.data if self.region else None
+        if self.region is None or self.rv3d is None:
+            self.report({"ERROR"}, "No 3D viewport region to draw in.")
+            return {"CANCELLED"}
+
+        self.dragging = False
+        self.start = Vector((0.0, 0.0))
+        self.end = Vector((0.0, 0.0))
+        self.cuts = 0
+        # One entry per cut: the regions as they were before it, bmeshes included, so
+        # Ctrl+Z restores a state instead of re-slicing the source from the plane list.
+        self.history = []
+
+        # A previous session's pieces are replaced, hand made collisions are left alone.
+        for piece in get_slice_pieces(self.source):
+            bpy.data.objects.remove(piece, do_unlink=True)
+
+        # One region per piece: the planes that bound it, the clipped source geometry
+        # cached as a bmesh, and the collision object showing it.
+        base = source_bmesh(self.source, context)
+        self.regions = [{"planes": [], "bm": base, "obj": None}]
+        self.rebuild(context, self.regions)
+        if self.regions[0]["obj"] is None:
+            base.free()
+            self.report({"ERROR"}, f"{self.source.name} has no hullable geometry.")
+            return {"CANCELLED"}
+
+        self._handler = bpy.types.SpaceView3D.draw_handler_add(
+            _draw_slice_line, (self, context), 'WINDOW', 'POST_PIXEL'
+        )
+        context.window_manager.modal_handler_add(self)
+        self.set_header(context)
+        return {"RUNNING_MODAL"}
+
+    def set_header(self, context):
+        context.area.header_text_set(
+            "Slice: drag to cut  |  Ctrl+Z undo cut  |  C color  |  W wireframe"
+            f"  |  F / Shift+F face budget ({context.scene.ct_properties.target_face_count})"
+            "  |  Enter or Esc to finish"
+        )
+
+    def snapshot(self):
+        return [{"planes": list(r["planes"]), "bm": r["bm"].copy()} for r in self.regions]
+
+    def undo_cut(self, context):
+        if not self.history:
+            self.report({"INFO"}, "No cut to undo.")
+            return
+        for region in self.regions:
+            if region["obj"] is not None:
+                bpy.data.objects.remove(region["obj"], do_unlink=True)
+            region["bm"].free()
+        self.regions = [{"planes": r["planes"], "bm": r["bm"], "obj": None} for r in self.history.pop()]
+        self.rebuild(context, self.regions)
+        self.cuts -= 1
+        self.region.tag_redraw()
+
+    def rebuild(self, context, regions):
+        """Give every listed region a fresh collision object."""
+        for region in regions:
+            if region["obj"] is not None:
+                bpy.data.objects.remove(region["obj"], do_unlink=True)
+            region["obj"] = slice_collision_piece(region["bm"], self.source, context)
+
+    def apply_cut(self, context):
+        plane = view_cut_plane(self.region, self.rv3d, self.start, self.end)
+        if plane is None:
+            return
+        co, normal = world_plane_to_local(self.source, *plane)
+
+        before = self.snapshot()
+        regions, retired = split_slice_regions(self.regions, co, normal)
+        fresh = [r for r in regions if r["obj"] is None]
+        if not fresh:                       # the plane missed the asset entirely
+            for region in before:
+                region["bm"].free()
+            return
+        self.history.append(before)
+
+        for obj in retired:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        self.regions = regions
+        self.rebuild(context, fresh)
+        self.cuts += 1
+
+        for region in self.regions:         # drop regions whose hull came out degenerate
+            if region["obj"] is None:
+                region["bm"].free()
+        self.regions = [r for r in self.regions if r["obj"] is not None]
+
+    def in_region(self, event):
+        x = event.mouse_x - self.region.x
+        y = event.mouse_y - self.region.y
+        return 0 <= x <= self.region.width and 0 <= y <= self.region.height
+
+    def mouse(self, event):
+        return Vector((event.mouse_x - self.region.x, event.mouse_y - self.region.y))
+
+    def modal(self, context, event):
+        if event.type in {'RET', 'NUMPAD_ENTER', 'ESC'}:
+            if event.value == 'PRESS':
+                return self.finish(context)
+            return {'RUNNING_MODAL'}
+
+        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'} or event.type.startswith('NUMPAD_'):
+            return {'PASS_THROUGH'}
+
+        # Display toggles, so the pieces can be read while carving. Their property update
+        # callbacks re-run set_display over every collision object, slices included.
+        if event.value == 'PRESS' and event.type in self.DISPLAY_KEYS:
+            prop = self.DISPLAY_KEYS[event.type]
+            ct_props = context.scene.ct_properties
+            setattr(ct_props, prop, not getattr(ct_props, prop))
+            self.region.tag_redraw()
+            return {'RUNNING_MODAL'}
+
+        if event.value == 'PRESS' and event.type == 'Z' and event.ctrl:
+            self.undo_cut(context)
+            return {'RUNNING_MODAL'}
+
+        # Face budget, retuned live: the hulls do not change, only their decimate ratio,
+        # so this is a modifier tweak per piece rather than a re-slice.
+        if event.value == 'PRESS' and event.type == self.BUDGET_KEY:
+            ct_props = context.scene.ct_properties
+            step = -self.BUDGET_STEP if event.shift else self.BUDGET_STEP
+            ct_props.target_face_count = ct_props.target_face_count + step   # property clamps
+            for region in self.regions:
+                if region["obj"] is not None:
+                    budget_collision_faces(region["obj"], ct_props.target_face_count)
+            self.set_header(context)
+            self.region.tag_redraw()
+            return {'RUNNING_MODAL'}
+
+        if event.type == 'MOUSEMOVE':
+            if self.dragging:
+                self.end = self.mouse(event)
+                self.region.tag_redraw()
+            return {'RUNNING_MODAL'}
+
+        if event.type == 'LEFTMOUSE':
+            if event.value == 'PRESS':
+                if not self.in_region(event):
+                    return {'PASS_THROUGH'}
+                self.dragging = True
+                self.start = self.mouse(event)
+                self.end = self.start.copy()
+            elif event.value == 'RELEASE' and self.dragging:
+                self.dragging = False
+                self.end = self.mouse(event)
+                if (self.end - self.start).length >= self.MIN_DRAG_PX:
+                    self.apply_cut(context)
+                self.region.tag_redraw()
+            return {'RUNNING_MODAL'}
+
+        return {'RUNNING_MODAL'}
+
+    def finish(self, context):
+        bpy.types.SpaceView3D.draw_handler_remove(self._handler, 'WINDOW')
+        context.area.header_text_set(None)
+        self.region.tag_redraw()
+        pieces = [r["obj"] for r in self.regions if r["obj"] is not None]
+        for region in self.regions:
+            region["bm"].free()
+        for state in self.history:
+            for region in state:
+                region["bm"].free()
+        self.history.clear()
+        set_selection(pieces)
+        self.report({"INFO"}, f"{self.cuts} cut(s), {len(pieces)} collision piece(s) on {self.source.name}.")
+        return {"FINISHED"}
+
+
 class CT_AddSocketToSelected(Operator):
     bl_idname = "ct.add_socket_to_selected"
     bl_label = "Add Socket to Selected"
@@ -506,6 +725,7 @@ _classes = (
     CT_Regenerate_Capsule_Collision,
     CT_ConvertToUCX,
     CT_CollisionFromSelection,
+    CT_SliceCollision,
 )
 
 def register():

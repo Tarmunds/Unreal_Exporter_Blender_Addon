@@ -1,11 +1,10 @@
 --- collision ---
 
-collisison slicer (important tool)
--> partially covered: convex/kdop generation from an Edit Mode selection is in.
-   still missing a real slicer (bisect / split a collision into pieces in one click)
-
 collision merger (join several collisions into one)
--> reattach/rebind is in (Convert / Rebind, keeps the prefix, follows the parent)
+
+slicer follow-ups:
+ - reopening the slicer on an asset restarts the session from scratch (planes are not stored)
+ - no cut history inside the modal, Ctrl+Z after finishing rolls back the whole session
 
 --- exporter ---
 apply modifier before (hierarchy too)
